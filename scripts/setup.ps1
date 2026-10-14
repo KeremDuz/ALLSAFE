@@ -36,4 +36,18 @@ if (-not (Test-Path -LiteralPath '.env')) {
         Set-Content -LiteralPath '.env' -Encoding utf8
     Write-Host 'Yerel .env olusturuldu; yonetici anahtari ekrana yazilmadi.'
 }
-Write-Host 'Kurulum tamamlandi. API: .\scripts\start-api.ps1'
+$localConfiguration = Get-Content -LiteralPath '.env' -Raw
+if ($localConfiguration -notmatch '(?m)^ALLSAFE_INITIAL_ADMIN_PASSWORD=\S[^\r\n]*$') {
+    $passwordBytes = New-Object byte[] 32
+    $passwordGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $passwordGenerator.GetBytes($passwordBytes) } finally { $passwordGenerator.Dispose() }
+    $initialPassword = [Convert]::ToBase64String($passwordBytes)
+    if ($localConfiguration -match '(?m)^ALLSAFE_INITIAL_ADMIN_PASSWORD=\s*$') {
+        $localConfiguration = [regex]::Replace($localConfiguration, '(?m)^ALLSAFE_INITIAL_ADMIN_PASSWORD=[^\r\n]*', "ALLSAFE_INITIAL_ADMIN_PASSWORD=$initialPassword")
+    } else {
+        $localConfiguration += "`nALLSAFE_INITIAL_ADMIN_PASSWORD=$initialPassword`n"
+    }
+    $localConfiguration | Set-Content -LiteralPath '.env' -Encoding utf8
+    Write-Host 'Ilk yonetici parolasi .env icinde olusturuldu; ekrana yazilmadi.'
+}
+Write-Host 'Kurulum tamamlandi. API: .\scripts\start-api.ps1; yonetici: admin@allsafe.local'

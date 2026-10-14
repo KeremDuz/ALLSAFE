@@ -7,6 +7,8 @@ WORKDIR /app
 COPY apps/api/pyproject.toml ./pyproject.toml
 COPY apps/api/requirements.lock ./requirements.lock
 COPY apps/api/src ./src
+COPY apps/api/alembic.ini ./alembic.ini
+COPY apps/api/alembic ./alembic
 RUN pip install --no-cache-dir -r requirements.lock \
     && pip install --no-cache-dir --no-deps . \
     && useradd --create-home --uid 10001 allsafe \

@@ -4,14 +4,14 @@ import hmac
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from allsafe_api.config import Settings
 from allsafe_api.database import get_session
-from allsafe_api.models import AuditEvent, Device, EnrollmentToken, new_id, utc_now
+from allsafe_api.models import AuditEvent, Device, EnrollmentToken, User, new_id, utc_now
 from allsafe_api.schemas import (
     AuditEventResponse,
     DeviceResponse,
@@ -25,16 +25,21 @@ from allsafe_api.schemas import (
     as_utc,
 )
 from allsafe_api.security import (
+    Actor,
     BearerCredentials,
     generate_token,
     hash_token,
     require_admin,
+    require_permission,
     unauthorized,
 )
 
 router = APIRouter()
 DatabaseSession = Annotated[Session, Depends(get_session)]
 Admin = Annotated[str, Depends(require_admin)]
+DeviceReader = Annotated[Actor, Depends(require_permission("devices:read"))]
+AuditReader = Annotated[Actor, Depends(require_permission("audit:read"))]
+ModuleReader = Annotated[Actor, Depends(require_permission("modules:read"))]
 
 
 def device_response(device: Device, settings: Settings) -> DeviceResponse:
@@ -68,6 +73,7 @@ def readiness(session: DatabaseSession) -> dict[str, str]:
     try:
         # A reachable database without the required schema is not ready to serve.
         session.execute(select(Device.id).limit(1)).first()
+        session.execute(select(User.id).limit(1)).first()
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -77,13 +83,21 @@ def readiness(session: DatabaseSession) -> dict[str, str]:
 
 
 @router.get("/api/v1/modules", response_model=list[ModuleResponse], tags=["Modules"])
-def list_modules(_: Admin) -> list[ModuleResponse]:
+def list_modules(_: ModuleReader) -> list[ModuleResponse]:
     return [
         ModuleResponse(
             id="core",
             name="ALLSAFE Core",
             status="available",
-            capabilities=["device-enrollment", "heartbeat", "inventory", "audit"],
+            capabilities=[
+                "user-identity",
+                "role-authorization",
+                "device-enrollment",
+                "heartbeat",
+                "inventory",
+                "audit",
+                "device-token-rotation",
+            ],
             description="Single-organization lab enrollment and device visibility.",
         ),
         ModuleResponse(
@@ -117,8 +131,9 @@ def list_modules(_: Admin) -> list[ModuleResponse]:
     tags=["Enrollment"],
 )
 def issue_enrollment_token(
-    payload: EnrollmentTokenRequest, session: DatabaseSession, admin: Admin
+    payload: EnrollmentTokenRequest, session: DatabaseSession, admin: Admin, response: Response
 ) -> EnrollmentTokenResponse:
+    response.headers["Cache-Control"] = "no-store"
     now = utc_now()
     token = generate_token()
     token_id = new_id()
@@ -151,7 +166,10 @@ def issue_enrollment_token(
     status_code=status.HTTP_201_CREATED,
     tags=["Agent"],
 )
-def enroll_device(payload: EnrollRequest, session: DatabaseSession) -> EnrollResponse:
+def enroll_device(
+    payload: EnrollRequest, session: DatabaseSession, response: Response
+) -> EnrollResponse:
+    response.headers["Cache-Control"] = "no-store"
     now = utc_now()
     agent_token = generate_token()
     device_id = new_id()
@@ -235,7 +253,7 @@ def heartbeat(
 def list_devices(
     request: Request,
     session: DatabaseSession,
-    _: Admin,
+    _: DeviceReader,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[DeviceResponse]:
     devices = session.scalars(select(Device).order_by(Device.created_at.desc()).limit(limit))
@@ -244,7 +262,7 @@ def list_devices(
 
 @router.get("/api/v1/devices/{device_id}", response_model=DeviceResponse, tags=["Devices"])
 def get_device(
-    device_id: str, request: Request, session: DatabaseSession, _: Admin
+    device_id: str, request: Request, session: DatabaseSession, _: DeviceReader
 ) -> DeviceResponse:
     device = session.get(Device, device_id)
     if device is None:
@@ -285,10 +303,38 @@ def revoke_device(
 @router.get("/api/v1/audit-events", response_model=list[AuditEventResponse], tags=["Audit"])
 def list_audit_events(
     session: DatabaseSession,
-    _: Admin,
+    _: AuditReader,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[AuditEventResponse]:
     events = session.scalars(
         select(AuditEvent).order_by(AuditEvent.occurred_at.desc()).limit(limit)
     )
     return [AuditEventResponse.model_validate(event) for event in events]
+
+
+@router.post(
+    "/api/v1/devices/{device_id}/rotate-token", response_model=EnrollResponse, tags=["Devices"]
+)
+def rotate_device_token(
+    device_id: str, session: DatabaseSession, admin: Admin, response: Response
+) -> EnrollResponse:
+    response.headers["Cache-Control"] = "no-store"
+    token = generate_token()
+    with session.begin():
+        accepted_id = session.execute(
+            update(Device)
+            .where(Device.id == device_id, Device.revoked_at.is_(None))
+            .values(agent_token_hash=hash_token(token))
+            .returning(Device.id)
+        ).scalar_one_or_none()
+        if accepted_id is None:
+            device = session.get(Device, device_id)
+            if device is None:
+                raise HTTPException(status_code=404, detail="Device not found")
+            raise HTTPException(status_code=409, detail="Revoked devices must be enrolled again")
+        session.add(
+            AuditEvent(
+                event_type="device.token_rotated", actor=admin, target_id=device_id, details={}
+            )
+        )
+    return EnrollResponse(device_id=device_id, agent_token=token)
