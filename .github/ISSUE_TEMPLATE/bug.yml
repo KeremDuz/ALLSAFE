@@ -1,0 +1,22 @@
+name: Hata
+description: Tekrarlanabilir bir hata bildirin.
+title: "fix: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Tekrarlama adımları
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Beklenen ve gerçekleşen davranış
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Ortam ve sürüm
+      description: İşletim sistemi, uygulama sürümü ve ilgili modül. Secret/token eklemeyin.

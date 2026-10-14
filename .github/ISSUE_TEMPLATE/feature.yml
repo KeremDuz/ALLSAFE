@@ -1,0 +1,24 @@
+name: Özellik
+description: Yeni bir geliştirme işi tanımlayın.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: İhtiyaç
+      description: Kullanıcı hangi işi yapmak istiyor?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Kabul kriterleri
+      description: Tamamlandığını gösteren somut davranışlar.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Kapsam
+      description: Bu işte ele alınacak sınırlar ve bağımlılıklar.

@@ -1,0 +1,3 @@
+[submodule "packages/phishcatch"]
+	path = packages/phishcatch
+	url = https://github.com/KeremDuz/PhishCatch.git
