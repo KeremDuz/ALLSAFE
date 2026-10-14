@@ -19,6 +19,7 @@ from allsafe_api.database import (
 from allsafe_api.identity import initialize_identity
 from allsafe_api.identity import router as identity_router
 from allsafe_api.models import Base
+from allsafe_api.phishcatch.routes import router as phishcatch_router
 from allsafe_api.routes import router
 
 
@@ -85,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application.include_router(router)
     application.include_router(identity_router)
+    application.include_router(phishcatch_router)
     return application
 
 

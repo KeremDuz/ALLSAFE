@@ -43,6 +43,9 @@ class UserSession(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     csrf_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    channel: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="web", server_default="web"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

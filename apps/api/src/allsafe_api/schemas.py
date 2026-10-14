@@ -149,3 +149,10 @@ class UserResponse(BaseModel):
     role: UserRole
     permissions: list[str]
     active: bool
+
+
+class MobileLoginResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int = Field(ge=60, le=28800)
+    user: UserResponse

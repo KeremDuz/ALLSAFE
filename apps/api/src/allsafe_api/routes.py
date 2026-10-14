@@ -83,7 +83,11 @@ def readiness(session: DatabaseSession) -> dict[str, str]:
 
 
 @router.get("/api/v1/modules", response_model=list[ModuleResponse], tags=["Modules"])
-def list_modules(_: ModuleReader) -> list[ModuleResponse]:
+def list_modules(_: ModuleReader, request: Request) -> list[ModuleResponse]:
+    phishcatch_configured = bool(
+        request.app.state.settings.phishcatch_url
+        and request.app.state.settings.phishcatch_integration_key
+    )
     return [
         ModuleResponse(
             id="core",
@@ -103,9 +107,12 @@ def list_modules(_: ModuleReader) -> list[ModuleResponse]:
         ModuleResponse(
             id="phishcatch",
             name="PhishCatch",
-            status="unavailable",
-            capabilities=[],
-            description="Upstream source is available; ALLSAFE integration is pending.",
+            status="available" if phishcatch_configured else "unavailable",
+            capabilities=["scan-history", "verified-labels", "training-approval"],
+            description=(
+                "Central scan history and verified training approval; "
+                "live service/model status is shown on the PhishCatch page."
+            ),
         ),
         ModuleResponse(
             id="wazuh",

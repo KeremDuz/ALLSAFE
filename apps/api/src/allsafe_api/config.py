@@ -32,12 +32,17 @@ class Settings(BaseSettings):
         description="Create missing tables in development/test only; use Alembic otherwise.",
     )
     heartbeat_timeout_seconds: int = Field(default=120, ge=10, le=86400)
+    phishcatch_url: str | None = None
+    phishcatch_integration_key: SecretStr | None = None
+    phishcatch_timeout_seconds: int = Field(default=45, ge=1, le=60)
+    phishcatch_allow_loopback_http: bool = False
 
     @field_validator(
         "bootstrap_admin_token",
         "initial_admin_password",
         "session_signing_secret",
         "oidc_client_secret",
+        "phishcatch_integration_key",
         mode="before",
     )
     @classmethod
@@ -54,6 +59,32 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_identity_configuration(self) -> "Settings":
+        if self.phishcatch_url:
+            parsed = urlsplit(self.phishcatch_url)
+            if (
+                not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+                or parsed.path not in {"", "/"}
+            ):
+                raise ValueError(
+                    "PhishCatch URL must be a server origin without credentials or a path"
+                )
+            if parsed.scheme != "https" and not (
+                self.phishcatch_allow_loopback_http
+                and parsed.scheme == "http"
+                and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+            ):
+                raise ValueError(
+                    "PhishCatch requires HTTPS outside an explicitly enabled loopback lab"
+                )
+        if (
+            self.phishcatch_integration_key
+            and len(self.phishcatch_integration_key.get_secret_value()) < 32
+        ):
+            raise ValueError("PhishCatch integration key must contain at least 32 characters")
         if (
             self.initial_admin_password is not None
             and len(self.initial_admin_password.get_secret_value()) < 12

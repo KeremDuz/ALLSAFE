@@ -31,4 +31,9 @@ export const auditLabels: Record<string, string> = {
   'user.updated': 'Kullanıcı bilgileri güncellendi',
   'user.password_reset': 'Kullanıcı parolası yenilendi',
   'user.oidc_linked': 'Kurumsal kimlik eşleştirildi',
+  'phishcatch.scan_submitted': 'PhishCatch taraması gönderildi',
+  'phishcatch.scan_completed': 'PhishCatch analiz kaydı tamamlandı',
+  'phishcatch.review_created': 'Bağımsız tarama incelemesi kaydedildi',
+  'phishcatch.training_approved': 'Eğitim verisi onaylandı',
+  'phishcatch.training_removed': 'Eğitim onayı kaldırıldı',
 };
