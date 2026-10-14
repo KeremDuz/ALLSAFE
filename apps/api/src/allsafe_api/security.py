@@ -5,7 +5,7 @@ import hmac
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 from urllib.parse import urlsplit
 
 from argon2 import PasswordHasher
@@ -33,10 +33,24 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "audit:read",
             "modules:read",
             "users:manage",
+            "scans:submit",
+            "scans:own:read",
+            "scans:read",
+            "scans:review",
         }
     ),
-    "analyst": frozenset({"devices:read", "audit:read", "modules:read"}),
-    "employee": frozenset(),
+    "analyst": frozenset(
+        {
+            "devices:read",
+            "audit:read",
+            "modules:read",
+            "scans:submit",
+            "scans:own:read",
+            "scans:read",
+            "scans:review",
+        }
+    ),
+    "employee": frozenset({"scans:submit", "scans:own:read"}),
 }
 
 
@@ -46,6 +60,7 @@ class Actor:
     permissions: frozenset[str]
     user: UserResponse | None = None
     session_id: str | None = None
+    session_channel: Literal["web", "mobile"] | None = None
 
 
 def generate_token() -> str:
@@ -113,12 +128,13 @@ def current_actor(request: Request, credentials: BearerCredentials) -> Actor:
     configured: Settings = request.app.state.settings
     if credentials is not None:
         bootstrap = configured.bootstrap_admin_token
-        if bootstrap is None or not hmac.compare_digest(
+        if bootstrap is not None and hmac.compare_digest(
             hash_token(credentials.credentials), hash_token(bootstrap.get_secret_value())
         ):
-            raise unauthorized()
-        return Actor(id="bootstrap-admin", permissions=ROLE_PERMISSIONS["admin"])
-    token = request.cookies.get(SESSION_COOKIE)
+            return Actor(id="bootstrap-admin", permissions=ROLE_PERMISSIONS["admin"])
+        token, channel = credentials.credentials, "mobile"
+    else:
+        token, channel = request.cookies.get(SESSION_COOKIE), "web"
     if not token:
         raise unauthorized()
     # This read uses its own session. Route transactions never inherit an auth autobegin.
@@ -126,6 +142,7 @@ def current_actor(request: Request, credentials: BearerCredentials) -> Actor:
         login_session = database.scalar(
             select(UserSession).where(
                 UserSession.token_hash == hash_token(token),
+                UserSession.channel == channel,
                 UserSession.revoked_at.is_(None),
                 UserSession.expires_at > utc_now(),
             )
@@ -135,7 +152,7 @@ def current_actor(request: Request, credentials: BearerCredentials) -> Actor:
         user = database.get(User, login_session.user_id)
         if user is None or not user.active:
             raise unauthorized()
-        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        if channel == "web" and request.method not in {"GET", "HEAD", "OPTIONS"}:
             validate_origin(request)
             supplied_csrf = request.headers.get("x-csrf-token", "")
             cookie_csrf = request.cookies.get(CSRF_COOKIE, "")
@@ -151,6 +168,7 @@ def current_actor(request: Request, credentials: BearerCredentials) -> Actor:
             permissions=frozenset(dto.permissions),
             user=dto,
             session_id=login_session.id,
+            session_channel=cast(Literal["web", "mobile"], channel),
         )
 
 

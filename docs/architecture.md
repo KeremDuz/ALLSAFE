@@ -6,10 +6,11 @@ ALLSAFE, şirketin güvenlik bulgularını ve cihazlarını ortak bir panelde bi
 
 ```mermaid
 flowchart TB
-    Panel["ALLSAFE web paneli — sonraki aşama"] --> Core["ALLSAFE Core API"]
-    Mobile["PhishCatch mobil"] --> Phish["PhishCatch analiz servisi"]
-    Phish --> Core
-    Agent["Windows ALLSAFE Agent — sonraki aşama"] --> Core
+    Panel["ALLSAFE web paneli"] --> Core["ALLSAFE Core API"]
+    Mobile["PhishCatch mobil"] -->|"Kurum modu"| Core
+    Mobile -->|"Bağımsız mod"| Phish["PhishCatch analiz servisi"]
+    Core --> Phish
+    Agent["Windows ALLSAFE Agent"] --> Core
     Wazuh["Wazuh bağlantısı — sonraki aşama"] <--> Core
     Core --> Database["Ortak veritabanı"]
 ```
@@ -66,3 +67,5 @@ Model tahmini eğitim etiketi değildir. Her tarama canlı modeli otomatik günc
 ## Sonraki aşamaların sınırları
 
 Uzaktan yönetim işleri eklendiğinde izin verilen komut listesi, hedef cihaz yetkisi, iş kimliği, tekrar çalıştırma kontrolü ve doğrulanmış sonuç gerekir. İsteğin kabul edilmesi ile cihazdaki işlemin tamamlanması ayrı durumlar olacaktır. Patch management, uzaktan masaüstü, DLP, firewall ve DNS firewall ilk teslimin dışında kalır.
+
+Güncel PhishCatch servis sınırı ve ayrı eğitim onayı [ADR 0005](decisions/0005-phishcatch-boundary.md) ve [kurulum belgesinde](phishcatch.md) açıklanır.

@@ -1,7 +1,7 @@
 """Local lab identities, opaque browser sessions and optional OIDC login."""
 
 from datetime import timedelta
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client.apps import StarletteOAuth2App
@@ -19,6 +19,7 @@ from allsafe_api.schemas import (
     CreateUserRequest,
     LinkOIDCRequest,
     LoginRequest,
+    MobileLoginResponse,
     ResetPasswordRequest,
     UpdateUserRequest,
     UserResponse,
@@ -88,13 +89,24 @@ def revoke_user_sessions(database: Session, user_id: str) -> None:
     )
 
 
-def add_session(database: Session, request: Request, user: User) -> tuple[str, str]:
+def session_lifetime(request: Request, channel: Literal["web", "mobile"]) -> int:
+    lifetime = request.app.state.settings.user_session_ttl_seconds
+    return min(lifetime, 28800) if channel == "mobile" else lifetime
+
+
+def add_session(
+    database: Session, request: Request, user: User, channel: Literal["web", "mobile"] = "web"
+) -> tuple[str, str]:
     token, csrf = generate_token(), generate_token()
     previous = request.cookies.get(SESSION_COOKIE)
-    if previous:
+    if previous and channel == "web":
         database.execute(
             update(UserSession)
-            .where(UserSession.token_hash == hash_token(previous), UserSession.revoked_at.is_(None))
+            .where(
+                UserSession.token_hash == hash_token(previous),
+                UserSession.channel == "web",
+                UserSession.revoked_at.is_(None),
+            )
             .values(revoked_at=utc_now())
         )
     database.add(
@@ -102,11 +114,15 @@ def add_session(database: Session, request: Request, user: User) -> tuple[str, s
             user_id=user.id,
             token_hash=hash_token(token),
             csrf_hash=hash_token(csrf),
-            expires_at=utc_now()
-            + timedelta(seconds=request.app.state.settings.user_session_ttl_seconds),
+            channel=channel,
+            expires_at=utc_now() + timedelta(seconds=session_lifetime(request, channel)),
         )
     )
-    database.add(AuditEvent(event_type="auth.login", actor=user.id, target_id=user.id, details={}))
+    database.add(
+        AuditEvent(
+            event_type="auth.login", actor=user.id, target_id=user.id, details={"channel": channel}
+        )
+    )
     return token, csrf
 
 
@@ -136,6 +152,14 @@ def login(
     payload: LoginRequest, request: Request, response: Response, session: DatabaseSession
 ) -> UserResponse:
     validate_origin(request)
+    user, tokens = authenticate_local_user(payload, request, session, channel="web")
+    session_cookies(response, request, *tokens)
+    return user_response(user)
+
+
+def authenticate_local_user(
+    payload: LoginRequest, request: Request, session: Session, *, channel: Literal["web", "mobile"]
+) -> tuple[User, tuple[str, str]]:
     if request.app.state.settings.authentication_mode != "local":
         raise HTTPException(status_code=409, detail="Local password login is disabled")
     subject_hash = hash_token(payload.email)
@@ -185,12 +209,47 @@ def login(
             if PASSWORD_HASHER.check_needs_rehash(user.password_hash):
                 user.password_hash = hash_password(payload.password.get_secret_value())
             session.execute(delete(LoginAttempt).where(LoginAttempt.subject_hash == subject_hash))
-            tokens = add_session(session, request, user)
+            tokens = add_session(session, request, user, channel)
     # Failed attempts must commit before the generic error is raised.
     if user is None or tokens is None:
         raise unauthorized()
-    session_cookies(response, request, *tokens)
-    return user_response(user)
+    return user, tokens
+
+
+@router.post("/auth/mobile/login", response_model=MobileLoginResponse)
+def mobile_login(
+    payload: LoginRequest, request: Request, response: Response, session: DatabaseSession
+) -> MobileLoginResponse:
+    if request.app.state.settings.authentication_mode != "local":
+        raise HTTPException(status_code=409, detail="Native mobile OIDC login is not implemented")
+    user, tokens = authenticate_local_user(payload, request, session, channel="mobile")
+    response.headers["Cache-Control"] = "no-store"
+    return MobileLoginResponse(
+        access_token=tokens[0],
+        expires_in=session_lifetime(request, "mobile"),
+        user=user_response(user),
+    )
+
+
+@router.post("/auth/mobile/logout", status_code=204)
+def mobile_logout(response: Response, actor: CurrentActor, session: DatabaseSession) -> None:
+    if actor.session_id is None or actor.session_channel != "mobile":
+        raise unauthorized()
+    with session.begin():
+        session.execute(
+            update(UserSession)
+            .where(UserSession.id == actor.session_id)
+            .values(revoked_at=utc_now())
+        )
+        session.add(
+            AuditEvent(
+                event_type="auth.logout",
+                actor=actor.id,
+                target_id=actor.id,
+                details={"channel": "mobile"},
+            )
+        )
+    response.headers["Cache-Control"] = "no-store"
 
 
 @router.get("/auth/me", response_model=UserResponse)
@@ -205,7 +264,7 @@ def me(actor: CurrentActor, response: Response) -> UserResponse:
 def logout(
     request: Request, response: Response, actor: CurrentActor, session: DatabaseSession
 ) -> None:
-    if actor.session_id is None:
+    if actor.session_id is None or actor.session_channel != "web":
         raise unauthorized()
     with session.begin():
         session.execute(
