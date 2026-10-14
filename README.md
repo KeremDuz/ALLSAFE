@@ -25,7 +25,7 @@ FastAPI çekirdeği, SQLAlchemy kayıt sistemi ve Alembic migration'ı hazırdı
 - Cihaz erişimini iptal etme ve işlem geçmişi.
 - Yetki ayrımı, kayıt tekrarı, süre aşımı ve kalıcılık testleri.
 
-Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim onayı yetkisi, kullanıcı oturumları ve cihaz anahtarı rotasyonu eklenmiştir. OpenID Connect için yapılandırılabilir giriş ve açık hesap eşleştirmesi vardır; gerçek kurum sağlayıcısıyla kabul testi ayrıca gerekir. Web paneli; gerçek cihaz listesi, kayıt kodu oluşturma, cihaz erişimini iptal etme, kullanıcı yönetimi ve işlem geçmişini içerir. Çalışanlar kendi hesap bilgilerini görür; kurum ekranları role göre açılır. Windows servis ajanı ve ürün entegrasyonları sonraki aşamalardır. PhishCatch kaynak bağlantısının bulunması, servisinin otomatik çalıştığı anlamına gelmez.
+Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim onayı yetkisi, kullanıcı oturumları ve cihaz anahtarı rotasyonu eklenmiştir. OpenID Connect için yapılandırılabilir giriş ve açık hesap eşleştirmesi vardır; gerçek kurum sağlayıcısıyla kabul testi ayrıca gerekir. Web paneli; gerçek cihaz listesi, kayıt kodu oluşturma, cihaz erişimini iptal etme, kullanıcı yönetimi ve işlem geçmişini içerir. Çalışanlar kendi hesap bilgilerini görür; kurum ekranları role göre açılır. Windows ajanı; DPAPI korumalı cihaz kimliği, konsol/servis modu, heartbeat ve temel envanteri içerir. Servis kurulumu ayrı laboratuvar kabulü gerektirir. Ürün entegrasyonları sonraki aşamalardır. PhishCatch kaynak bağlantısının bulunması, servisinin otomatik çalıştığı anlamına gelmez.
 
 ## Yerel çalıştırma
 
@@ -98,6 +98,15 @@ Geliştirme varsayılanı tabloları oluşturur. Migration akışı için `.env`
 
 İlk migration'ı deneyeceğiniz veritabanı yeni olmalıdır. PostgreSQL için `postgres` extra ve `postgresql+psycopg://...` bağlantısı planlanmıştır; bu ilk teslimde PostgreSQL üzerinde doğrulama yapılmadı.
 
+Windows ajanı için:
+
+```powershell
+.\scripts\check-agent.ps1
+.\scripts\publish-agent.ps1
+```
+
+[Kurulum ve laboratuvar kabulü](docs/windows-agent.md).
+
 ## API akışı
 
 | İşlem | Uç nokta | Kimlik |
@@ -111,7 +120,7 @@ Geliştirme varsayılanı tabloları oluşturur. Migration akışı için `.env`
 
 ## Proje belgeleri
 
-[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
+[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Windows ajanı](docs/windows-agent.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
 
 ## PhishCatch
 

@@ -63,3 +63,18 @@ jobs:
         run: npm test
       - name: Type check and production bundle
         run: npm run build
+
+  agent-checks:
+    name: Agent checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.402'
+      - name: Locked agent dependencies
+        run: dotnet restore apps/agent/Allsafe.Agent.Tests/Allsafe.Agent.Tests.csproj --locked-mode
+      - name: Protocol and Windows credential tests
+        run: dotnet test apps/agent/Allsafe.Agent.Tests/Allsafe.Agent.Tests.csproj --no-restore --configuration Release
+      - name: Windows package
+        run: dotnet publish apps/agent/Allsafe.Agent/Allsafe.Agent.csproj --configuration Release --runtime win-x64 --self-contained true --output .local/agent-package -p:RestoreLockedMode=true
