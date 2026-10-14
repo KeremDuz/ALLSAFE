@@ -13,6 +13,10 @@ dependencies = [
     "SQLAlchemy>=2.0,<3",
     "pydantic-settings>=2.7,<3",
     "alembic>=1.14,<2",
+    "argon2-cffi>=25,<26",
+    "Authlib>=1.6,<2",
+    "itsdangerous>=2.2,<3",
+    "httpx>=0.28,<1",
 ]
 
 [project.optional-dependencies]

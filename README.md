@@ -25,7 +25,7 @@ FastAPI çekirdeği, SQLAlchemy kayıt sistemi ve Alembic migration'ı hazırdı
 - Cihaz erişimini iptal etme ve işlem geçmişi.
 - Yetki ayrımı, kayıt tekrarı, süre aşımı ve kalıcılık testleri.
 
-Windows servis ajanı, kullanıcı girişi/RBAC, web paneli ve ürün entegrasyonları henüz uygulanmadı. PhishCatch kaynak bağlantısının bulunması, servisinin otomatik çalıştığı anlamına gelmez.
+Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim onayı yetkisi, kullanıcı oturumları ve cihaz anahtarı rotasyonu eklenmiştir. OpenID Connect için yapılandırılabilir giriş ve açık hesap eşleştirmesi vardır; gerçek kurum sağlayıcısıyla kabul testi ayrıca gerekir. Windows servis ajanı, web paneli ve ürün entegrasyonları sonraki aşamalardır. PhishCatch kaynak bağlantısının bulunması, servisinin otomatik çalıştığı anlamına gelmez.
 
 ## Yerel çalıştırma
 
@@ -38,7 +38,7 @@ Python 3.12+ gerekir. Windows'ta kurulum betiği mevcut Codex Python ortamını 
 
 API belgeleri: http://127.0.0.1:8000/docs
 
-Kurulum yalnızca yoksa `.env` oluşturur ve rastgele bir yerel yönetici anahtarı üretir; anahtar ekrana yazılmaz. Geliştirme API'sinde `Bearer` olarak bu anahtar kullanılır. Cihazlar kendi ayrı anahtarlarını kullanır. `.env` Git'e alınmaz. Bu geçici yönetici mekanizması üretim kullanıcı girişi değildir; `ALLSAFE_ENVIRONMENT=production` ile başlangıç reddedilir.
+Kurulum yalnızca yoksa `.env` oluşturur. İlk yerel yönetici `admin@allsafe.local` hesabıdır; rastgele ilk parolası `.env` içindeki `ALLSAFE_INITIAL_ADMIN_PASSWORD` alanında saklanır ve ekrana yazılmaz. İlk kullanıcı yalnızca boş hesap veritabanında oluşturulur; betiği yeniden çalıştırmak mevcut parolayı sıfırlamaz. Web oturumları HttpOnly çerez kullanır; değişikliklerde oturuma bağlı CSRF doğrulaması gerekir. Eski `Bearer` yönetici anahtarı yalnızca laboratuvar betikleri için geçiş desteğidir. Cihazlar kendi ayrı anahtarlarını kullanır. `.env` Git'e alınmaz. `ALLSAFE_ENVIRONMENT=production` ile başlangıç reddedilir.
 
 Başka bir terminalde simüle edilen cihaz akışını deneyebilirsiniz; demo, oluşturduğu cihazın erişimini sonunda iptal eder:
 
@@ -94,7 +94,7 @@ Geliştirme varsayılanı tabloları oluşturur. Migration akışı için `.env`
 
 ## Proje belgeleri
 
-[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
+[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
 
 ## PhishCatch
 

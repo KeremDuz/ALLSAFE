@@ -14,14 +14,28 @@ anyio==4.15.1
     # via
     #   httpx
     #   starlette
+argon2-cffi==25.1.0
+    # via allsafe-api (apps/api/pyproject.toml)
+argon2-cffi-bindings==26.1.0
+    # via argon2-cffi
+authlib==1.9.0
+    # via allsafe-api (apps/api/pyproject.toml)
 certifi==2026.7.22
     # via
     #   httpcore
     #   httpx
+cffi==2.1.1
+    # via
+    #   argon2-cffi-bindings
+    #   cryptography
 click==8.5.0
     # via uvicorn
 colorama==0.4.6
     # via pytest
+cryptography==50.0.2
+    # via
+    #   authlib
+    #   joserfc
 fastapi==0.143.0
     # via allsafe-api (apps/api/pyproject.toml)
 h11==0.16.0
@@ -38,6 +52,10 @@ idna==3.20
     #   httpx
 iniconfig==2.3.1
     # via pytest
+itsdangerous==2.2.0
+    # via allsafe-api (apps/api/pyproject.toml)
+joserfc==1.7.5
+    # via authlib
 mako==1.4.3
     # via alembic
 markupsafe==3.0.4
@@ -48,6 +66,8 @@ packaging==26.3
     # via pytest
 pluggy==1.6.0
     # via pytest
+pycparser==3.11
+    # via cffi
 pydantic==2.14.1
     # via
     #   fastapi

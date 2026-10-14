@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,6 +14,7 @@ ADMIN_TOKEN = "test-admin-secret"
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     return Settings(
+        _env_file=None,
         environment="test",
         database_url=f"sqlite:///{(tmp_path / 'allsafe.db').as_posix()}",
         initialize_schema=True,
@@ -23,6 +25,28 @@ def settings(tmp_path) -> Settings:
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
     with TestClient(create_app(settings)) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def identity_settings(tmp_path: Path) -> Settings:
+    return Settings(
+        _env_file=None,
+        environment="test",
+        database_url=f"sqlite:///{(tmp_path / 'identity.db').as_posix()}",
+        initialize_schema=True,
+        bootstrap_admin_token=None,
+        authentication_mode="local",
+        initial_admin_email="admin@allsafe.local",
+        initial_admin_password=SecretStr("Test-Admin-Password-1234"),
+        cookie_secure=False,
+        frontend_url="http://127.0.0.1:5173",
+    )
+
+
+@pytest.fixture
+def identity_client(identity_settings: Settings) -> Iterator[TestClient]:
+    with TestClient(create_app(identity_settings)) as test_client:
         yield test_client
 
 

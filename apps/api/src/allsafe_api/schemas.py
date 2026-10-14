@@ -91,3 +91,61 @@ class AuditEventResponse(BaseModel):
     @classmethod
     def utc_dates(cls, value: datetime) -> datetime:
         return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+UserRole = Literal["admin", "analyst", "employee"]
+
+
+class EmailRequest(RequestModel):
+    email: str = Field(min_length=3, max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if "@" not in normalized or any(character.isspace() for character in normalized):
+            raise ValueError("A valid email address is required")
+        return normalized
+
+
+class LoginRequest(EmailRequest):
+    password: SecretStr = Field(min_length=1, max_length=1024)
+
+
+class CreateUserRequest(EmailRequest):
+    display_name: str = Field(min_length=1, max_length=120)
+    password: SecretStr | None = Field(default=None, min_length=12, max_length=1024)
+    role: UserRole = "employee"
+    training_permission: bool = False
+
+
+class UpdateUserRequest(RequestModel):
+    role: UserRole | None = None
+    active: bool | None = None
+    training_permission: bool | None = None
+    display_name: str | None = Field(default=None, min_length=1, max_length=120)
+
+    @field_validator("role", "active", "training_permission", "display_name", mode="before")
+    @classmethod
+    def reject_explicit_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("Omit unchanged fields instead of using null")
+        return value
+
+
+class ResetPasswordRequest(RequestModel):
+    password: SecretStr = Field(min_length=12, max_length=1024)
+
+
+class LinkOIDCRequest(RequestModel):
+    issuer: str = Field(min_length=1, max_length=512)
+    subject: str = Field(min_length=1, max_length=255)
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    role: UserRole
+    permissions: list[str]
+    active: bool

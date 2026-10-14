@@ -11,6 +11,12 @@ services:
       ALLSAFE_BOOTSTRAP_ADMIN_TOKEN: ${ALLSAFE_BOOTSTRAP_ADMIN_TOKEN:?Set a local admin token in .env}
       ALLSAFE_DATABASE_URL: sqlite:////app/data/allsafe.db
       ALLSAFE_INITIALIZE_SCHEMA: "true"
+      ALLSAFE_AUTHENTICATION_MODE: ${ALLSAFE_AUTHENTICATION_MODE:-local}
+      ALLSAFE_INITIAL_ADMIN_EMAIL: ${ALLSAFE_INITIAL_ADMIN_EMAIL:-admin@allsafe.local}
+      ALLSAFE_INITIAL_ADMIN_PASSWORD: ${ALLSAFE_INITIAL_ADMIN_PASSWORD:-}
+      ALLSAFE_FRONTEND_URL: ${ALLSAFE_FRONTEND_URL:-http://127.0.0.1:5173}
+      ALLSAFE_API_URL: ${ALLSAFE_API_URL:-http://127.0.0.1:8000}
+      ALLSAFE_COOKIE_SECURE: "false"
     volumes:
       - api-data:/app/data
     healthcheck:
