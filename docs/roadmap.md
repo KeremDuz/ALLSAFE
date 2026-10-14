@@ -12,11 +12,11 @@ Bu sıra, çalışan bir uçtan uca akış üretmek için hazırlanmıştır. Ta
 | **M6 — Olay ve temel yönetim işleri** | Olay sorumlusu, notlar, kanıtlar; sınırlı cihaz yönetim işlemleri | İş hedefe yetkili olarak gönderilir; tekrar çalıştırılmaz; kabul, tamamlanma ve hata ayrı izlenir |
 | **M7 — Bitirme teslimi** | Kurulum belgesi, laboratuvar senaryosu, ölçüm ve sunum | Mobil taramadan olay incelemesine uzanan demo tekrarlanabilir; hata ve yetkisiz erişim senaryoları doğrulanır |
 
-## Şimdi başlanacak iş
+## Güncel durum
 
-M1, `feat/platform-foundation` dalında geliştirilir. İlk PR'ın sınırı cihaz kayıt ve heartbeat akışıdır. Gerçek Windows servisi, web paneli, PhishCatch analiz değişiklikleri ve cihaz komutları bu PR'a eklenmez.
+M1 çekirdeği ve M2 kimlik/panel akışı tamamlandı. Yerel API üzerinde yönetici ve çalışan oturumları, gerçek cihaz listesi ve rol sınırları doğrulandı. Panel testleri hata durumunda bilinmeyen sayıları sıfır olarak göstermediğini de kontrol eder.
 
-M1 tamamlandığında yeni bir yerel veritabanına migration uygulanmalı, bir kayıt daveti oluşturulmalı, cihaz kaydedilmeli, heartbeat gönderilmeli ve yönetici cihazı listede görmelidir. Aynı davetle ikinci kayıt ve yanlış cihaz token'ıyla erişim reddedilmelidir.
+Sıradaki M3, Windows servis ajanıdır: tek kullanımlık katılım, Windows korumalı kimlik saklama, yeniden başlatma sonrası heartbeat ve temel envanter. Ardından M4 PhishCatch, M5 yapılandırılabilir Wazuh bağlantısı gelir. Wazuh için henüz laboratuvar sunucusu yoktur; canlı kabul testi kurulumdan sonra yapılır.
 
 ## Üretim öncesi zorunlu işler
 

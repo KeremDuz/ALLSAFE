@@ -13,7 +13,7 @@ ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP, fi
 
 ## Geliştirme düzeni
 
-`main` kararlı sürümleri, `develop` entegrasyonu tutar. İlk geliştirme dalı `feat/platform-foundation`'dır. Diğer iş dalları, ilgili çalışma başladığında `feat/*`, `fix/*`, `hotfix/*` ve `release/*` adlarıyla açılır. Feature PR'ları squash ile `develop`'a, release PR'ları geçmişi koruyan merge ile `main`'e alınır.
+`main` kararlı sürümleri, `develop` entegrasyonu tutar. İş dalları, ilgili çalışma başladığında `feat/*`, `fix/*`, `hotfix/*` ve `release/*` adlarıyla açılır. Feature PR'ları squash ile `develop`'a, release PR'ları geçmişi koruyan merge ile `main`'e alınır.
 
 ## İlk çalışan parça
 
@@ -25,7 +25,7 @@ FastAPI çekirdeği, SQLAlchemy kayıt sistemi ve Alembic migration'ı hazırdı
 - Cihaz erişimini iptal etme ve işlem geçmişi.
 - Yetki ayrımı, kayıt tekrarı, süre aşımı ve kalıcılık testleri.
 
-Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim onayı yetkisi, kullanıcı oturumları ve cihaz anahtarı rotasyonu eklenmiştir. OpenID Connect için yapılandırılabilir giriş ve açık hesap eşleştirmesi vardır; gerçek kurum sağlayıcısıyla kabul testi ayrıca gerekir. Windows servis ajanı, web paneli ve ürün entegrasyonları sonraki aşamalardır. PhishCatch kaynak bağlantısının bulunması, servisinin otomatik çalıştığı anlamına gelmez.
+Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim onayı yetkisi, kullanıcı oturumları ve cihaz anahtarı rotasyonu eklenmiştir. OpenID Connect için yapılandırılabilir giriş ve açık hesap eşleştirmesi vardır; gerçek kurum sağlayıcısıyla kabul testi ayrıca gerekir. Web paneli; gerçek cihaz listesi, kayıt kodu oluşturma, cihaz erişimini iptal etme, kullanıcı yönetimi ve işlem geçmişini içerir. Çalışanlar kendi hesap bilgilerini görür; kurum ekranları role göre açılır. Windows servis ajanı ve ürün entegrasyonları sonraki aşamalardır. PhishCatch kaynak bağlantısının bulunması, servisinin otomatik çalıştığı anlamına gelmez.
 
 ## Yerel çalıştırma
 
@@ -37,6 +37,14 @@ Python 3.12+ gerekir. Windows'ta kurulum betiği mevcut Codex Python ortamını 
 ```
 
 API belgeleri: http://127.0.0.1:8000/docs
+
+Panel için Node.js 22.12+ gerekir. API çalışırken ikinci terminalde:
+
+```powershell
+.\scripts\start-web.ps1
+```
+
+Panel: http://127.0.0.1:5173. Ayrıntılar: [Web paneli](docs/web-panel.md).
 
 Kurulum yalnızca yoksa `.env` oluşturur. İlk yerel yönetici `admin@allsafe.local` hesabıdır; rastgele ilk parolası `.env` içindeki `ALLSAFE_INITIAL_ADMIN_PASSWORD` alanında saklanır ve ekrana yazılmaz. İlk kullanıcı yalnızca boş hesap veritabanında oluşturulur; betiği yeniden çalıştırmak mevcut parolayı sıfırlamaz. Web oturumları HttpOnly çerez kullanır; değişikliklerde oturuma bağlı CSRF doğrulaması gerekir. Eski `Bearer` yönetici anahtarı yalnızca laboratuvar betikleri için geçiş desteğidir. Cihazlar kendi ayrı anahtarlarını kullanır. `.env` Git'e alınmaz. `ALLSAFE_ENVIRONMENT=production` ile başlangıç reddedilir.
 
@@ -64,6 +72,15 @@ Docker ile yerel laboratuvar alternatifi: `.env` hazırlandıktan sonra `docker 
 
 ```powershell
 .\scripts\check.ps1
+```
+
+Panel doğrulaması:
+
+```powershell
+Set-Location apps/web
+npm ci
+npm test
+npm run build
 ```
 
 CI aynı lint, biçimlendirme ve davranış testlerini çalıştırır; ayrıca Alembic şemasının model tanımlarıyla tutarlı olduğunu kontrol eder. Bağımlılık sürümleri `apps/api/requirements*.lock` dosyalarında sabitlenmiştir. Python 3.12 ve `pip-tools` ile güncellenebilir:
@@ -94,7 +111,7 @@ Geliştirme varsayılanı tabloları oluşturur. Migration akışı için `.env`
 
 ## Proje belgeleri
 
-[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
+[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
 
 ## PhishCatch
 
