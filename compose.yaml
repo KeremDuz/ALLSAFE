@@ -1,0 +1,23 @@
+# Local lab only: bootstrap admin authentication is not production user auth.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      ALLSAFE_ENVIRONMENT: development
+      ALLSAFE_BOOTSTRAP_ADMIN_TOKEN: ${ALLSAFE_BOOTSTRAP_ADMIN_TOKEN:?Set a local admin token in .env}
+      ALLSAFE_DATABASE_URL: sqlite:////app/data/allsafe.db
+      ALLSAFE_INITIALIZE_SCHEMA: "true"
+    volumes:
+      - api-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  api-data:
