@@ -16,7 +16,7 @@ Bu sıra, çalışan bir uçtan uca akış üretmek için hazırlanmıştır. Ta
 
 M1 çekirdeği ve M2 kimlik/panel akışı tamamlandı. Yerel API üzerinde yönetici ve çalışan oturumları, gerçek cihaz listesi ve rol sınırları doğrulandı. Panel testleri hata durumunda bilinmeyen sayıları sıfır olarak göstermediğini de kontrol eder.
 
-Sıradaki M3, Windows servis ajanıdır: tek kullanımlık katılım, Windows korumalı kimlik saklama, yeniden başlatma sonrası heartbeat ve temel envanter. Ardından M4 PhishCatch, M5 yapılandırılabilir Wazuh bağlantısı gelir. Wazuh için henüz laboratuvar sunucusu yoktur; canlı kabul testi kurulumdan sonra yapılır.
+M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, fiziksel envanter, aynı kimliğin yeniden yüklenmesi, rotasyon ve iptal sonrası durma doğrulandı. Windows servis kurulumu/reboot kabulü ayrı laboratuvar makinesinde yapılmalıdır. Sıradaki geliştirmeler M4 PhishCatch ve M5 yapılandırılabilir Wazuh bağlantısıdır. Wazuh için henüz laboratuvar sunucusu yoktur; canlı kabul testi kurulumdan sonra yapılır.
 
 ## Üretim öncesi zorunlu işler
 
