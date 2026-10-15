@@ -6,10 +6,11 @@ ALLSAFE, kurumsal güvenlik verilerini ve cihaz yönetimini tek panelde birleşt
 
 - **PhishCatch:** Mobil QR/URL analizi, merkezi tarama geçmişi ve doğrulanmış eğitim verisi.
 - **Wazuh:** Güvenlik alarmları ve cihazla ilişkili güvenlik bulguları.
-- **ALLSAFE Agent:** Kendi geliştirdiğimiz Windows kayıt/envanter ajanı ve yerel onaylı uzaktan destek uygulaması.
+- **ALLSAFE Agent:** Kendi geliştirdiğimiz Windows kayıt/envanter ajanı ve görünür uzaktan destek uygulaması; varsayılan yerel onay veya açıkça başlatılan gözetimsiz mod.
+- **Yönetici erişimi:** Önceden hazırlanmış Windows hesabıyla panelde OpenSSH terminali ve yerel istemci için RDP profili.
 - **Ortak çekirdek:** Kimlik, yetki, cihazlar, olaylar ve işlem geçmişi.
 
-ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP ve firewall sonraki aşamalardadır. Uzaktan masaüstü, görünür yerel onay gerektiren laboratuvar modülü olarak eklenmiştir.
+ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP ve firewall sonraki aşamalardadır. Uzaktan erişim laboratuvar prototipidir; [masaüstü modları ve SSH/RDP hedef hazırlığı](docs/managed-access.md) ayrı sınırlar taşır.
 
 ## Geliştirme düzeni
 
@@ -116,7 +117,21 @@ Yönetici panelde çevrim içi Windows cihazını açıp **Uzaktan masaüstü** 
 .\scripts\start-remote-desktop.ps1
 ```
 
-Normal kurulumda korunan cihaz kimliğini okuyabilmek için yerel yönetici tarafından başlatılır. Hedefte ayrı onay verilince ana monitör panelde paylaşılır; kontrol kapsamında fare/klavye yönlendirilebilir. Her iki taraf da durdurabilir. Yanıtsız istek 2 dakikada, onaylı oturum en fazla 10 dakikada biter. Ekran/tuş kaydı ve gözetimsiz erişim yoktur. API **tek worker** ile çalışır; Windows görsel/kilit/UAC kabulü ayrı laboratuvar gerektirir. [Kurulum, güven sınırları ve kabul adımları](docs/remote-desktop.md).
+Normal kurulumda korunan cihaz kimliğini okuyabilmek için yerel yönetici tarafından başlatılır. Varsayılan modda hedefte ayrı onay verilince ana monitör paylaşılır; kontrol kapsamında fare/klavye yönlendirilebilir. Her iki taraf da durdurabilir. Yanıtsız istek 2 dakikada, aktif oturum en fazla 10 dakikada biter. Ekran/tuş kaydı tutulmaz. API **tek worker** ile çalışır; Windows görsel/kilit/UAC kabulü ayrı laboratuvar gerektirir. [Kurulum ve güven sınırları](docs/remote-desktop.md). Onaysız yönetim seçeneği aşağıda ayrıca açıklanır.
+
+## Yönetici terminali ve onaysız erişim
+
+Panelde **Cihazlar → cihaz → Yönetici erişimi**, önceden eşlenmiş Windows hesabıyla SSH terminali açar. Hedefte kullanıcı veya bağlantı başına yerel onay gerekmez. Sunucudaki `ALLSAFE_MANAGED_ACCESS_CONFIG_FILE`, kayıtlı cihazı açık SSH hesabı, ayrı istemci anahtarı ve doğrulanmış sunucu anahtarıyla eşler. Tarayıcı hedef adresi veya anahtar seçemez. Hesap Windows yöneticisiyse terminal o hesabın yetkileriyle çalışır; ALLSAFE Windows yetkisini kendiliğinden yükseltmez. Komutlar ve çıktı saklanmaz, oturum üst verisi işlem geçmişine alınır.
+
+Aynı ekrandaki RDP dosyası desteklenen Windows sürümünde yerel Windows istemcisiyle açılır. Profilin indirilmesi bağlantının kurulduğunu göstermez; ALLSAFE bu RDP oturumunu sonradan kapattığını iddia etmez.
+
+Home dahil açık ve kilitsiz Windows masaüstüne yerel onay beklemeden bağlanmak için destek uygulaması hedefte yönetici tarafından açıkça bu modda başlatılır:
+
+```powershell
+.\scripts\start-remote-desktop.ps1 -Unattended
+```
+
+Görünür durum bildirimi ve durdurma düğmesi korunur. Bu mod Session 0, kilit ekranı veya oturumu kapalı Home için yeni masaüstü oluşturmaz. Terminal ve desteklenen sürümlerdeki RDP ayrı yollar olarak çalışır. [Hedef hazırlığı, yapılandırma ve gerçek Windows kabulü](docs/managed-access.md).
 
 ## API akışı
 
@@ -131,7 +146,7 @@ Normal kurulumda korunan cihaz kimliğini okuyabilmek için yerel yönetici tara
 
 ## Proje belgeleri
 
-[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Windows ajanı](docs/windows-agent.md) · [PhishCatch bağlantısı](docs/phishcatch.md) · [Wazuh bağlantısı](docs/wazuh.md) · [Laboratuvar kabulü](docs/lab-acceptance.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
+[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Windows ajanı](docs/windows-agent.md) · [Uzaktan masaüstü](docs/remote-desktop.md) · [Yönetici terminali ve gözetimsiz erişim](docs/managed-access.md) · [PhishCatch bağlantısı](docs/phishcatch.md) · [Wazuh bağlantısı](docs/wazuh.md) · [Laboratuvar kabulü](docs/lab-acceptance.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
 
 ## PhishCatch
 

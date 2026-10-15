@@ -1,6 +1,6 @@
 # ADR 0007: Kullanıcı onaylı uzaktan masaüstü
 
-Durum: Kabul edildi; fiziksel Windows laboratuvar kabulü ayrı tutulur.
+Durum: İlk kullanıcı onaylı mod için kabul edildi; fiziksel Windows laboratuvar kabulü ayrı tutulur. Gözetimsiz başlangıç seçeneği ve standart SSH/RDP yönetim erişimi bu kararın ilgili kapsam sınırlarını [ADR 0008](0008-managed-access.md) ile genişletir. Aşağıdaki bağlantı başına yerel onay akışı varsayılan mod için geçerlidir.
 
 ## Bağlam
 
@@ -22,11 +22,11 @@ Oturum metaverisi ve yaşam döngüsü audit kayıtları veritabanında kalır. 
 
 Mevcut Windows servisi düşük yetkili heartbeat görevini korur; interaktif oturum yönetimi ve servis tarafından kullanıcı uygulaması başlatma altyapısı eklenmez. Bunun bedeli, bu ilk sürümde hedef bilgisayarda yerel yönetici tarafından görünür destek uygulaması başlatılmasıdır. İleride normal kullanıcı companion'ı için servisle erişimi sınırlandırılmış IPC üzerinden yalnız destek oturumuna yeten kimlik devri ayrı bir kararla tasarlanabilir. Mevcut cihaz kimliğini Users grubuna okunur yapmak kabul edilmez.
 
-Destek uygulaması yükseltilmiş yetkiyle çalıştığından kontrol bazı yükseltilmiş uygulamalara da erişebilir. Windows UIPI ve güvenli masaüstü sınırları atlatılmaz. Masaüstü klavyesiyle Terminal gibi yerel uygulamalar kullanılabilir; ayrı, gizli veya keyfi komut yürütme API'si tasarlanmaz. Kontrol izni bu nedenle kapsamı açık bir kullanıcı onayı gerektirir.
+Destek uygulaması yükseltilmiş yetkiyle çalıştığından kontrol bazı yükseltilmiş uygulamalara da erişebilir. Windows UIPI ve güvenli masaüstü sınırları atlatılmaz. Masaüstü klavyesiyle Terminal gibi yerel uygulamalar kullanılabilir; ajanda ayrı, gizli veya keyfi komut yürütme API'si tasarlanmaz. Varsayılan moddaki kontrol izni bu nedenle kapsamı açık bir kullanıcı onayı gerektirir; gözetimsiz seçeneğin önceden yönetici tarafından etkinleştirilmesi [ADR 0008](0008-managed-access.md) kapsamındadır.
 
-Doğrudan RDP veya ek bir gateway bu aşamada seçilmez: ayrı Windows oturumu, ek ağ dinleyicisi ve harici altyapı yerine mevcut panele sınırlı destek akışı eklenir. Düşük kare hızlı JPEG, prototipin uygulanabilirliğini ve sınırlarını görünür tutar; yüksek performanslı görüntü codec'i veya çok makineli relay hedeflemez.
+İlk destek akışında doğrudan RDP veya ek bir gateway seçilmedi: ayrı Windows oturumu, ek ağ dinleyicisi ve harici altyapı yerine mevcut panele sınırlı destek akışı eklendi. Düşük kare hızlı JPEG, prototipin uygulanabilirliğini ve sınırlarını görünür tutar; yüksek performanslı görüntü codec'i veya çok makineli relay hedeflemez. Sonradan eklenen yerel RDP profil aktarımı bu JPEG akışını değiştirmez ve [ADR 0008](0008-managed-access.md) ile tanımlanır.
 
-Gözetimsiz erişim, giriş/kilit ekranı, UAC geçişi, pano, dosya aktarımı, ses, kayıt, çoklu monitör seçimi, imzalama ve otomatik güncelleme kapsam dışıdır. Otomatik yetkilendirme/protokol testleriyle fiziksel Windows onay, ekran ve giriş kabulü ayrı raporlanır. Bu karar üretim hazırlığı iddiası değildir.
+Bu ilk karar gözetimsiz erişimi kapsam dışında tutmuştu; görünür `--unattended` modu ve ayrı standart protokol erişimi sonradan [ADR 0008](0008-managed-access.md) ile eklendi. Bu ekran paylaşımı giriş/kilit ekranı, UAC geçişi, pano, dosya aktarımı, ses, kayıt, çoklu monitör seçimi, imzalama ve otomatik güncelleme sağlamaz. Otomatik yetkilendirme/protokol testleriyle fiziksel Windows onay, ekran ve giriş kabulü ayrı raporlanır. Bu karar üretim hazırlığı iddiası değildir.
 
 ## Dayanaklar
 

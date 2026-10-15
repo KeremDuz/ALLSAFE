@@ -44,4 +44,9 @@ export const auditLabels: Record<string, string> = {
   'desktop.started': 'Uzaktan masaüstü başladı',
   'desktop.closed': 'Uzaktan masaüstü kapandı',
   'desktop.expired': 'Uzaktan masaüstü süresi doldu',
+  'managed_access.terminal.requested': 'Yönetici terminali istendi',
+  'managed_access.terminal.started': 'Yönetici terminali açıldı',
+  'managed_access.terminal.closed': 'Yönetici terminali kapandı',
+  'managed_access.terminal.expired': 'Yönetici terminalinin süresi doldu',
+  'managed_access.rdp.profile_downloaded': 'RDP bağlantı dosyası indirildi',
 };

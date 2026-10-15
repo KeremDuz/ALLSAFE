@@ -40,12 +40,12 @@ public sealed class DesktopCoordinator(IRemoteDesktopApi api, IDesktopSurface su
         if (accepted && !surface.IsAvailable) accepted = false;
         var decision = await api.DecideAsync(pending.Id, accepted, cancellationToken).ConfigureAwait(false);
         if (!accepted) { consent.Idle("İstek reddedildi."); return; }
-        // Approval is tied to the exact request shown locally, never to a later mode/operator change.
+        // Authorization is tied to the exact request, never to a later mode/operator change.
         if (decision.Id != pending.Id || decision.DeviceId != pending.DeviceId || decision.Mode != pending.Mode ||
             decision.OperatorName != pending.OperatorName || decision.Reason != pending.Reason || decision.Status != "approved" ||
             decision.ExpiresAt <= clock.GetUtcNow() || decision.ExpiresAt > clock.GetUtcNow().AddMinutes(10).AddSeconds(2) ||
             !surface.IsAvailable)
-            throw new InvalidDataException("Remote desktop approval does not match local consent.");
+            throw new InvalidDataException("Remote desktop authorization does not match the request.");
         using var session = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var grantGate = new object();
         using var revokeGrant = session.Token.Register(() => { lock (grantGate) surface.SetSharingEnabled(false); });
@@ -76,13 +76,13 @@ public sealed class DesktopCoordinator(IRemoteDesktopApi api, IDesktopSurface su
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { }
         catch (Exception problem) when (problem is IOException or System.Net.WebSockets.WebSocketException or InvalidDataException or TimeoutException)
-        { consent.Idle("Uzaktan destek bağlantısı sona erdi. Yeniden bağlantı için yeni onay gerekir."); }
+        { consent.Idle("Uzaktan destek bağlantısı sona erdi. Yeniden bağlantı için yeni oturum isteği gerekir."); }
         finally
         {
             session.Cancel();
             surface.SetSharingEnabled(false);
             surface.ReleaseAll();
-            consent.Idle("Uzaktan destek sona erdi. Yeni bir oturum için yeniden izin istenir.");
+            consent.Idle("Uzaktan destek sona erdi. Yeni bir oturum isteği bekleniyor.");
         }
     }
 
@@ -108,7 +108,7 @@ public sealed class DesktopCoordinator(IRemoteDesktopApi api, IDesktopSurface su
                     throw new InvalidDataException("Desktop frame exceeds the limit.");
                 if (lastWidth != frame.Width || lastHeight != frame.Height)
                 {
-                    if (lastWidth != 0) throw new InvalidDataException("Display resolution changed; new local consent is required.");
+                    if (lastWidth != 0) throw new InvalidDataException("Display resolution changed; a new remote desktop session is required.");
                     await connection.SendDisplayAsync(frame.Width, frame.Height, cancellationToken).ConfigureAwait(false);
                     lastWidth = frame.Width; lastHeight = frame.Height;
                 }

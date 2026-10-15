@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from alembic import context
 from allsafe_api.config import Settings
 from allsafe_api.database import build_engine, prepare_database_directory
+from allsafe_api.managed_access import models as managed_access_models  # noqa: F401
 from allsafe_api.models import Base
 from allsafe_api.phishcatch import models as phishcatch_models  # noqa: F401
 from allsafe_api.remote_desktop import models as desktop_models  # noqa: F401

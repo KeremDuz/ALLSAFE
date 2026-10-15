@@ -2,8 +2,10 @@ namespace Allsafe.Agent.RemoteDesktop;
 
 public static class DesktopApplication
 {
-    public static Task<int> RunAsync(DeviceCredential credential, HttpClient http)
+    public static Task<int> RunAsync(DeviceCredential credential, HttpClient http, bool unattended = false)
     {
+        // This public entry point must not bypass the unattended administrator requirement.
+        if (unattended) DesktopAccessPolicy.RequireAdministrator(development: true, unattended: true, NativeDesktopSurface.IsElevated);
         var complete = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
@@ -13,7 +15,7 @@ public static class DesktopApplication
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 using var surface = new DesktopSurfaceLifetime();
-                using var form = new DesktopConsentForm(credential, surface.Value, NativeDesktopSurface.IsElevated);
+                using var form = new DesktopConsentForm(credential, surface.Value, NativeDesktopSurface.IsElevated, unattended);
                 using var cancellation = new CancellationTokenSource();
                 var coordinator = new DesktopCoordinator(new RemoteDesktopApi(http, credential), surface.Value, form, TimeProvider.System);
                 Task worker = Task.CompletedTask;
@@ -59,14 +61,17 @@ internal sealed class DesktopConsentForm : Form, IDesktopConsent
     private readonly Button _deny = new() { Text = "Reddet", Width = 100, Height = 38, Visible = false };
     private readonly Button _stop = new() { Text = "Oturumu durdur", Width = 165, Height = 38, Enabled = false };
     private readonly IDesktopSurface _surface;
+    private readonly bool _unattended;
     private TaskCompletionSource<bool>? _pending;
     private Action? _stopAction;
 
-    public DesktopConsentForm(DeviceCredential credential, IDesktopSurface surface, bool elevated)
+    public DesktopConsentForm(DeviceCredential credential, IDesktopSurface surface, bool elevated, bool unattended = false)
     {
+        DesktopAccessPolicy.RequireAdministrator(development: true, unattended, elevated);
         _surface = surface;
+        _unattended = unattended;
         Text = "ALLSAFE | Uzaktan destek";
-        ClientSize = new Size(620, 460);
+        ClientSize = new Size(620, 620);
         Font = new Font("Segoe UI", 10);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
@@ -77,15 +82,24 @@ internal sealed class DesktopConsentForm : Form, IDesktopConsent
         { Text = "ALLSAFE Uzaktan Destek", Dock = DockStyle.Top, Height = 58, Font = new Font(Font, FontStyle.Bold), Padding = new Padding(16, 18, 16, 8) };
         var warning = new Label
         {
-            Text = elevated
-                ? "Bu uygulama yönetici yetkileriyle çalışıyor. Kontrol izni verdiğinizde operatör masaüstünüzde bu uygulamanın Windows yetkileriyle işlem yapabilir."
-                : "Kontrol izni verdiğinizde operatör masaüstünüzde sizin Windows yetkilerinizle işlem yapabilir.",
+            Text = unattended
+                ? "Bu uygulama yönetici yetkileriyle çalışıyor. Yetkili panel operatörü, yerel onay beklemeden masaüstünüzde bu uygulamanın Windows yetkileriyle işlem yapabilir."
+                : elevated
+                    ? "Bu uygulama yönetici yetkileriyle çalışıyor. Kontrol izni verdiğinizde operatör masaüstünüzde bu uygulamanın Windows yetkileriyle işlem yapabilir."
+                    : "Kontrol izni verdiğinizde operatör masaüstünüzde sizin Windows yetkilerinizle işlem yapabilir.",
             Dock = DockStyle.Top, Height = 80, Padding = new Padding(16, 8, 16, 8), ForeColor = Color.DarkRed
+        };
+        var mode = new Label
+        {
+            Text = unattended ? "Yönetilen erişim açık; yerel onay beklenmez." : "Her oturum için bu bilgisayardan ayrı izin gerekir.",
+            Dock = DockStyle.Top, Height = 44, Padding = new Padding(16, 8, 16, 8),
+            BackColor = unattended ? Color.LightGoldenrodYellow : SystemColors.Control,
+            Font = new Font(Font, FontStyle.Bold)
         };
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 64, Padding = new Padding(12, 8, 12, 8) };
         buttons.Controls.AddRange([_allow, _deny, _stop]);
-        Controls.Add(buttons); Controls.Add(_reason); Controls.Add(_operator); Controls.Add(_details); Controls.Add(_status); Controls.Add(warning); Controls.Add(title);
-        _details.Text = $"Cihaz: {credential.DeviceId}\nSunucu: {credential.ServerUri.Host}\nHer oturum için bu bilgisayardan ayrı izin gerekir.";
+        Controls.Add(buttons); Controls.Add(_reason); Controls.Add(_operator); Controls.Add(_details); Controls.Add(_status); Controls.Add(mode); Controls.Add(warning); Controls.Add(title);
+        _details.Text = $"Cihaz: {credential.DeviceId}\nSunucu: {credential.ServerUri.Host}";
         _status.Text = "Bağlantı isteği bekleniyor. Pencereyi kapatmak uzaktan desteği durdurur.";
         _allow.Click += (_, _) => ResolvePending(true);
         _deny.Click += (_, _) => ResolvePending(false);
@@ -93,7 +107,11 @@ internal sealed class DesktopConsentForm : Form, IDesktopConsent
         FormClosing += (_, _) => { _pending?.TrySetCanceled(); StopSession(); };
     }
 
-    public async Task<bool> AskAsync(DesktopSession session, CancellationToken cancellationToken)
+    public Task<bool> AskAsync(DesktopSession session, CancellationToken cancellationToken)
+        => DesktopAccessPolicy.DecideAsync(_unattended, session, TimeProvider.System,
+            token => AskWithConsentAsync(session, token), cancellationToken);
+
+    private async Task<bool> AskWithConsentAsync(DesktopSession session, CancellationToken cancellationToken)
     {
         var answer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var cancelled = cancellationToken.Register(() => answer.TrySetCanceled(cancellationToken));
@@ -167,5 +185,5 @@ internal sealed class DesktopConsentForm : Form, IDesktopConsent
     }
 
     private static string SessionDetails(DesktopSession session) =>
-        $"İzin: {(session.Mode == "control" ? "Ekran, klavye ve fare" : "Yalnızca ekran")}\nSon geçerlilik: {session.ExpiresAt.ToLocalTime():dd.MM.yyyy HH:mm:ss}";
+        $"Yetki: {(session.Mode == "control" ? "Ekran, klavye ve fare" : "Yalnızca ekran")}\nSon geçerlilik: {session.ExpiresAt.ToLocalTime():dd.MM.yyyy HH:mm:ss}";
 }

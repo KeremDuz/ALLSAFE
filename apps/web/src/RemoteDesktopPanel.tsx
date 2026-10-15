@@ -8,7 +8,7 @@ import './remote-desktop.css';
 const API = '/api/v1/remote-desktop/sessions';
 const terminal = new Set(['closed', 'expired', 'denied']);
 const statuses: Record<RemoteDesktopSession['status'], string> = {
-  pending: 'Yerel onay bekleniyor', approved: 'Bağlantı kuruluyor', active: 'Paylaşım açık',
+  pending: 'Cihaz bağlantısı bekleniyor', approved: 'Bağlantı kuruluyor', active: 'Paylaşım açık',
   denied: 'İstek reddedildi', closed: 'Oturum sona erdi', expired: 'Oturumun süresi doldu',
 };
 const supportedKeys = /^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|F([1-9]|1[0-2])|Arrow(Up|Down|Left|Right)|Backspace|Tab|Enter|Escape|Space|Delete|Insert|Home|End|PageUp|PageDown|Shift(Left|Right)|Control(Left|Right)|Alt(Left|Right)|CapsLock|NumLock|Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Backquote|Comma|Period|Slash|Numpad(Add|Subtract|Multiply|Divide|Decimal|Enter))$/;
@@ -235,7 +235,7 @@ export default function RemoteDesktopPanel({ device, onClose }: { device: Device
   return <Modal title={`${device.hostname} · Uzaktan masaüstü`} wide busy={busy} onClose={() => { if (!busy) { void stop(); onClose(); } }}>
     {error && <ErrorNotice message={error} />}
     {!session ? <form onSubmit={(event) => void submit(event)}>
-      <p className="desktop-intro">Hedef bilgisayarda ALLSAFE destek penceresi açık olmalı. Paylaşım, yerel kullanıcı onayladıktan sonra başlar.</p>
+      <p className="desktop-intro">Hedef bilgisayarda ALLSAFE destek uygulaması açık olmalı. Yönetilen erişim modunda bağlantı doğrudan açılır; diğer modda yerel onay beklenir.</p>
       <div className="field"><label htmlFor="desktop-reason">Destek nedeni</label><textarea id="desktop-reason" value={reason} onChange={(event) => setReason(event.target.value)} required minLength={3} maxLength={300} rows={2} /></div>
       <div className="field"><label htmlFor="desktop-mode">Erişim</label><select id="desktop-mode" value={mode} onChange={(event) => setMode(event.target.value as 'view' | 'control')}><option value="view">Yalnızca ekranı gör</option><option value="control">Ekran, fare ve klavye</option></select></div>
       <div className="modal-actions"><button type="button" className="button button-secondary" onClick={onClose}>Vazgeç</button><button className="button button-primary" type="submit" disabled={busy || reason.trim().length < 3 || device.status !== 'online' || device.platform !== 'windows'}>{busy ? 'Gönderiliyor…' : 'Bağlantı isteği gönder'}</button></div>
@@ -254,11 +254,11 @@ export default function RemoteDesktopPanel({ device, onClose }: { device: Device
           onPointerDown={(event) => pointer(event, 'down')} onPointerUp={(event) => pointer(event, 'up')}
           onPointerMove={(event) => pointer(event, 'move')} onPointerCancel={release} onBlur={release}
           onKeyDown={(event) => key(event, 'down')} onKeyUp={(event) => key(event, 'up')}
-          onContextMenu={(event) => event.preventDefault()} /> : <span>{session.status === 'pending' ? 'Hedef bilgisayarda onay bekleniyor.' : 'Ekran bağlantısı bekleniyor…'}</span>}
+          onContextMenu={(event) => event.preventDefault()} /> : <span>{session.status === 'pending' ? 'Hedef bilgisayara bağlanılıyor. Destek uygulamasının açık olduğundan emin olun.' : 'Ekran bağlantısı bekleniyor…'}</span>}
       </div>}
       {session.mode === 'control' && !ended && <div className="desktop-control-row"><button type="button" className={`button ${controlling ? 'button-secondary' : 'button-primary'}`} disabled={!imageLoaded} onClick={() => { if (controlling) release(); else { setControlling(true); imageRef.current?.focus(); } }}>{controlling ? 'Kontrolü bırak' : 'Fare ve klavyeyi yönlendir'}</button><span>Esc kontrolü bırakır. Pencere odağı kaybolunca basılı tuşlar bırakılır.</span></div>}
       {!ended && <p className="field-help">Her iki taraf paylaşımı durdurabilir. Görüntü ve tuşlar kaydedilmez. Oturum en fazla 10 dakika sürer.</p>}
-      {ended && <p className="desktop-intro">Yeni bağlantı için yeni istek ve yerel onay gerekir.</p>}
+      {ended && <p className="desktop-intro">Yeniden bağlanmak için yeni bir oturum başlatın.</p>}
     </div>}
   </Modal>;
 }

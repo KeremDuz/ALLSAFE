@@ -99,6 +99,48 @@ public sealed class RemoteDesktopTests
     }
 
     [Fact]
+    public async Task UnattendedAuthorizationStillWaitsForVisibleStopAndRelayReadiness()
+    {
+        var api = new FakeApi(); var surface = new FakeSurface();
+        var visible = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var consent = new FakeConsent { Unattended = true, Activation = visible.Task };
+        var work = NewCoordinator(api, surface, consent).HandleSessionAsync(Pending, CancellationToken.None);
+        await consent.Activated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(Assert.Single(api.Decisions)); Assert.False(consent.Asked.Task.IsCompleted);
+        Assert.Equal(0, api.Connects); Assert.Equal(0, surface.Captures); Assert.False(surface.Sharing);
+        visible.SetResult();
+        await api.Connected.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.False(surface.Sharing); Assert.Equal(0, surface.Captures);
+        await api.Connection.Commands.Writer.WriteAsync(new DesktopInput("ready"));
+        await api.Connection.FrameSent.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(surface.Sharing);
+        consent.Stop!();
+        Assert.False(surface.Sharing);
+        await work.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(api.Connection.Disposed); Assert.True(surface.Releases > 0);
+    }
+
+    [Fact]
+    public async Task UnattendedModeRejectsChangedServerAuthorization()
+    {
+        var api = new FakeApi { Decision = pending => Approved(pending) with { OperatorName = "other@example.test" } };
+        var surface = new FakeSurface(); var consent = new FakeConsent { Unattended = true };
+        await Assert.ThrowsAsync<InvalidDataException>(() => NewCoordinator(api, surface, consent).HandleSessionAsync(Pending, CancellationToken.None));
+        Assert.False(consent.Asked.Task.IsCompleted); Assert.Equal(0, api.Connects);
+        Assert.Equal(0, surface.Captures); Assert.False(surface.Sharing);
+    }
+
+    [Fact]
+    public async Task UnattendedModeCannotCaptureAnUnavailableWindowsDesktop()
+    {
+        var api = new FakeApi(); var surface = new FakeSurface { Available = false };
+        var consent = new FakeConsent { Unattended = true };
+        await NewCoordinator(api, surface, consent).HandleSessionAsync(Pending, CancellationToken.None);
+        Assert.Empty(api.Decisions); Assert.Equal(0, api.Connects);
+        Assert.False(consent.Activated.Task.IsCompleted); Assert.Equal(0, surface.Captures); Assert.Empty(surface.Inputs);
+    }
+
+    [Fact]
     public async Task ViewOnlyRejectsControlAndAlwaysReleasesOnDisconnect()
     {
         var api = new FakeApi { Decision = pending => Approved(pending) with { Mode = "view" } }; var surface = new FakeSurface(); var consent = Accepted();
@@ -270,12 +312,15 @@ public sealed class RemoteDesktopTests
 
     private sealed class FakeConsent : IDesktopConsent
     {
+        public bool Unattended { get; init; }
         public Task<bool> Answer { get; init; } = new TaskCompletionSource<bool>().Task;
         public Task Activation { get; set; } = Task.CompletedTask;
         public TaskCompletionSource Asked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Activated { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Action? Stop { get; private set; }
-        public Task<bool> AskAsync(DesktopSession session, CancellationToken cancellationToken) { Asked.TrySetResult(); return Answer.WaitAsync(cancellationToken); }
+        public Task<bool> AskAsync(DesktopSession session, CancellationToken cancellationToken)
+            => DesktopAccessPolicy.DecideAsync(Unattended, session, TimeProvider.System,
+                token => { Asked.TrySetResult(); return Answer.WaitAsync(token); }, cancellationToken);
         public async Task ActiveAsync(DesktopSession session, Action stop, CancellationToken cancellationToken)
         { Stop = stop; Activated.TrySetResult(); await Activation.WaitAsync(cancellationToken); }
         public void Idle(string message) { }

@@ -15,7 +15,7 @@ Bu, tek kurum için geliştirilen bitirme projesinin C# / .NET 10 tabanlı Windo
 
 Kullanıcı dosyaları, tarayıcı geçmişi, süreçler, yüklü yazılımlar, diskler, kullanıcı oturumları veya ağ trafiği envanter olarak toplanmaz. Ajan antivirüs/EDR taraması, cihaz izolasyonu, ayrı uzaktan kabuk API'si, yazılım kurulumu/kaldırılması, patch management, DLP veya firewall yönetimi yapmaz. Wazuh entegrasyonu ayrı modüldür; bu ajan Wazuh ajanının görevlerini üstlenmez.
 
-`desktop` modu, heartbeat servisinden ayrı ve görünür bir destek penceresi açar. Yerel onayla ana monitör görüntüsünü ve isteğe bağlı fare/klavye kontrolünü sağlar; servis oturumunda çalışmaz. Korunan kimliği okumak için bu prototipte yerel yönetici tarafından başlatılır. [Uzaktan masaüstü kurulumu ve sınırları](remote-desktop.md).
+`desktop` modu, heartbeat servisinden ayrı ve görünür bir destek penceresi açar. Varsayılan mod yerel onayla ana monitör görüntüsünü ve isteğe bağlı fare/klavye kontrolünü sağlar; servis oturumunda çalışmaz. Yönetici açıkça `desktop --unattended` / `start-remote-desktop.ps1 -Unattended` ile başlatırsa bağlantı başına yerel onay beklenmez; görünür durum ve durdurma korunur. Her iki mod mevcut aktif/kilitsiz masaüstünü gerektirir. Korunan kimliği okumak ve gözetimsiz modu etkinleştirmek için yerel yönetici gerekir. [Uzaktan masaüstü](remote-desktop.md) ve [ayrı OpenSSH terminali/RDP](managed-access.md) belgeleri sınırları açıklar; terminal heartbeat ajanında çalışmaz.
 
 ## Derleme ve doğrulama
 

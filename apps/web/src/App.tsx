@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Activity, ArrowRight, Check, CheckCircle2, Clock3, Copy, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Menu, Monitor, Plus, RefreshCw, Search, Shield, SlidersHorizontal, Users, Workflow, X } from 'lucide-react';
 import { ApiError, apiRequest } from './api';
 import PhishCatchPage from './PhishCatchPage';
@@ -9,6 +9,7 @@ import { auditLabels, formatDate, formatMemory, initials, roles } from './format
 import type { AuditEvent, AuthConfig, Device, Module, Page, User, UserRole } from './types';
 
 const API = '/api/v1';
+const ManagedAccessPanel = lazy(() => import('./ManagedAccessPanel'));
 const errorText = (error: unknown): string => error instanceof Error ? error.message : 'İşlem tamamlanamadı. Yeniden deneyin.';
 
 function useResource<T>(path: string, enabled: boolean, version: number) {
@@ -41,6 +42,7 @@ export default function App() {
   const [mobileNav, setMobileNav] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [desktopDevice, setDesktopDevice] = useState<Device | null>(null);
+  const [managedDevice, setManagedDevice] = useState<Device | null>(null);
   const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | 'new' | null>(null);
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
@@ -56,6 +58,7 @@ export default function App() {
   const clearSession = useCallback((message: string | null) => {
     setUser(null); setPage('overview'); setMobileNav(false); setSelectedDevice(null);
     setDesktopDevice(null);
+    setManagedDevice(null);
     setEnrollmentOpen(false); setEditingUser(null); setPasswordUser(null);
     setNotice(null); setSessionMessage(message);
   }, []);
@@ -148,8 +151,9 @@ export default function App() {
     </div>
     <div className="toast-region" aria-live="polite" aria-atomic="true">{notice && <div className="toast"><CheckCircle2 size={19} /><span>{notice}</span><button className="icon-button" onClick={() => setNotice(null)} aria-label="Bildirimi kapat"><X size={16} /></button></div>}</div>
     {enrollmentOpen && <EnrollmentModal onClose={() => setEnrollmentOpen(false)} onCreated={() => { refresh(); }} />}
-    {selectedDevice && <DeviceModal device={deviceList.find((item) => item.device_id === selectedDevice.device_id) ?? selectedDevice} canRevoke={can('devices:manage')} canDesktop={can('desktop:manage')} onDesktop={(device) => { setSelectedDevice(null); setDesktopDevice(device); }} onClose={() => setSelectedDevice(null)} onRevoked={(value) => { setSelectedDevice(value); refresh(); setNotice(`${value.hostname} cihazının erişimi iptal edildi.`); }} />}
+    {selectedDevice && <DeviceModal device={deviceList.find((item) => item.device_id === selectedDevice.device_id) ?? selectedDevice} canRevoke={can('devices:manage')} canDesktop={can('desktop:manage')} canManageAccess={can('remote-access:manage')} onManagedAccess={(device) => { setSelectedDevice(null); setManagedDevice(device); }} onDesktop={(device) => { setSelectedDevice(null); setDesktopDevice(device); }} onClose={() => setSelectedDevice(null)} onRevoked={(value) => { setSelectedDevice(value); refresh(); setNotice(`${value.hostname} cihazının erişimi iptal edildi.`); }} />}
     {desktopDevice && can('desktop:manage') && <RemoteDesktopPanel device={desktopDevice} onClose={() => { setDesktopDevice(null); refresh(); }} />}
+    {managedDevice && can('remote-access:manage') && <Suspense fallback={<Loading label="Terminal hazırlanıyor…" />}><ManagedAccessPanel device={managedDevice} onClose={() => { setManagedDevice(null); refresh(); }} /></Suspense>}
     {editingUser && <UserModal user={editingUser} local={config.mode === 'local'} currentUserId={user.id} onClose={() => setEditingUser(null)} onSaved={(value) => void afterUserChange(value, editingUser === 'new' ? 'Kullanıcı oluşturuldu.' : 'Kullanıcı bilgileri güncellendi.')} />}
     {passwordUser && <PasswordModal user={passwordUser} currentUserId={user.id} onClose={() => setPasswordUser(null)} onSaved={() => void afterUserChange(passwordUser, 'Parola yenilendi; kullanıcının oturumları kapatıldı.')} />}
   </div>;
@@ -235,7 +239,7 @@ function Detail({ label, value }: { label: string; value: ReactNode }) {
   return <div className="detail-item"><dt>{label}</dt><dd>{value}</dd></div>;
 }
 
-function DeviceModal({ device, canRevoke, canDesktop, onDesktop, onClose, onRevoked }: { device: Device; canRevoke: boolean; canDesktop: boolean; onDesktop: (device: Device) => void; onClose: () => void; onRevoked: (device: Device) => void }) {
+function DeviceModal({ device, canRevoke, canDesktop, canManageAccess, onManagedAccess, onDesktop, onClose, onRevoked }: { device: Device; canRevoke: boolean; canDesktop: boolean; canManageAccess: boolean; onManagedAccess: (device: Device) => void; onDesktop: (device: Device) => void; onClose: () => void; onRevoked: (device: Device) => void }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -250,7 +254,7 @@ function DeviceModal({ device, canRevoke, canDesktop, onDesktop, onClose, onRevo
   return <Modal title={device.hostname} busy={busy} onClose={() => { if (!busy) onClose(); }} wide><div className="device-detail-banner"><div><strong>{{ windows: 'Windows', linux: 'Linux', macos: 'macOS' }[device.platform]} cihazı</strong><span>ALLSAFE Agent {device.agent_version}</span></div><DeviceStatus status={device.status} /></div><dl className="detail-grid"><Detail label="İşletim sistemi" value={device.inventory.os_version || 'Henüz bildirilmedi'} /><Detail label="İşlemci sayısı" value={device.inventory.cpu_count ?? 'Henüz bildirilmedi'} /><Detail label="Toplam bellek" value={formatMemory(device.inventory.memory_total_bytes)} /><Detail label="Son bağlantı" value={formatDate(device.last_seen_at)} /><Detail label="Kayıt tarihi" value={formatDate(device.created_at)} /><Detail label="Erişim iptal tarihi" value={device.revoked_at ? formatDate(device.revoked_at) : 'Erişim iptal edilmedi'} /></dl><div className="device-id"><span>Cihaz kimliği</span><code>{device.device_id}</code></div>{error && <ErrorNotice message={error} />}
     {canRevoke && device.status !== 'revoked' && (confirming ? <form className="danger-confirm" onSubmit={(event) => void revoke(event)}><h3>{device.hostname} erişimi iptal edilsin mi?</h3><p>Bu cihazdan gelen yeni bağlantılar kabul edilmeyecek. Yeniden katılım için yeni kayıt kodu gerekir.</p><div className="field"><label htmlFor="revoke-hostname">Onaylamak için cihaz adını yazın: <strong>{device.hostname}</strong></label><input id="revoke-hostname" autoComplete="off" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></div><div className="modal-actions"><button className="button button-secondary" type="button" disabled={busy} onClick={() => { setConfirming(false); setConfirmation(''); }}>Vazgeç</button><button className="button button-danger" type="submit" disabled={busy || confirmation !== device.hostname}>{busy ? 'İptal ediliyor…' : 'Cihaz erişimini iptal et'}</button></div></form> : <div className="device-danger-zone"><div><strong>Cihaz erişimi</strong><p>Bu cihazın ALLSAFE bağlantısını durdurun.</p></div><button className="button button-danger-subtle" onClick={() => setConfirming(true)}><LockKeyhole size={16} />Erişimi iptal et</button></div>)}
     {device.status === 'revoked' && <div className="info-notice">Bu cihazın erişimi iptal edildi. Yeniden kayıt için yeni bir kayıt kodu oluşturulmalı.</div>}
-    <div className="modal-actions">{canDesktop && device.platform === 'windows' && <button className="button button-primary" disabled={busy || device.status !== 'online'} onClick={() => onDesktop(device)}>Uzaktan masaüstü</button>}<button className="button button-secondary" onClick={onClose} disabled={busy}>Kapat</button></div>
+    <div className="modal-actions">{canManageAccess && device.platform === 'windows' && <button className="button button-primary" disabled={busy || device.status === 'revoked'} onClick={() => onManagedAccess(device)}>Yönetici erişimi</button>}{canDesktop && device.platform === 'windows' && <button className="button button-secondary" disabled={busy || device.status !== 'online'} onClick={() => onDesktop(device)}>Uzaktan masaüstü</button>}<button className="button button-secondary" onClick={onClose} disabled={busy}>Kapat</button></div>
   </Modal>;
 }
 

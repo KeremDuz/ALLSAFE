@@ -24,6 +24,16 @@ export interface RemoteDesktopSession {
   status: 'pending' | 'approved' | 'active' | 'denied' | 'closed' | 'expired';
   created_at: string; expires_at: string; closed_reason: string | null;
 }
+export interface ManagedAccessStatus {
+  device_id: string;
+  terminal: { configured: boolean; account: string | null };
+  rdp: { configured: boolean; account: string | null };
+  error_code: string | null;
+}
+export interface ManagedTerminalSession {
+  id: string; device_id: string; status: 'pending' | 'connecting' | 'active' | 'closed' | 'expired';
+  created_at: string; expires_at: string; closed_reason: string | null;
+}
 export interface AuditEvent {
   id: string;
   event_type: string;

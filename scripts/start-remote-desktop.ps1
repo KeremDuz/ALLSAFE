@@ -1,6 +1,7 @@
 param(
     [string]$DevelopmentDirectory,
     [switch]$AllowLoopbackHttp,
+    [switch]$Unattended,
     [string]$AgentPath
 )
 $ErrorActionPreference = 'Stop'
@@ -21,11 +22,12 @@ if ($DevelopmentDirectory) {
     $arguments += @('--dev-state-dir', $state)
 }
 if ($AllowLoopbackHttp) { $arguments += '--allow-loopback-http' }
-if (-not $DevelopmentDirectory) {
+if ($Unattended) { $arguments += '--unattended' }
+if ($Unattended -or -not $DevelopmentDirectory) {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     try { $administrator = (New-Object Security.Principal.WindowsPrincipal($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
     finally { $identity.Dispose() }
-    if (-not $administrator) { throw 'Korunan cihaz kimliğini okumak için bu betiği açıkça Yönetici olarak başlatın. Ajanın dosya izinlerini değiştirmeyin.' }
+    if (-not $administrator) { throw 'Yönetilen erişim veya korunan cihaz kimliği için bu betiği açıkça Yönetici olarak başlatın. Ajanın dosya izinlerini değiştirmeyin.' }
 }
 # Foreground execution is deliberate: this command never installs or silently starts a companion.
 & $resolvedAgent @arguments
