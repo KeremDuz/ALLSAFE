@@ -28,6 +28,8 @@ Panel adresi `http://127.0.0.1:5173`, API adresi `http://127.0.0.1:8000` değeri
 
 Panel tek sayfalı bir uygulamadır. Sol menüdeki ekranlar aynı uygulama içinde değişir; cihaz detayları için ayrı, paylaşılabilir tarayıcı adresleri henüz yoktur.
 
+Arayüz; açık renkli menü, tek vurgu rengi, kompakt veri tabloları ve kısa işlem metinleri kullanır. Tanıtım sloganları ve dekoratif kart ikonları kaldırılmıştır. Dar ekranda menü açılır kapanır; geniş tablolar kendi alanında yatay kayar. Sayfa açıklamaları kısaltılırken bağlantı hatası, bilinmeyen veri, bağımsız inceleme ve eğitim onayı ayrımları korunur.
+
 Yerel yapılandırma:
 
 ```dotenv

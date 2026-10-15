@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { AlertCircle, ChevronRight, LoaderCircle, Monitor, X } from 'lucide-react';
+import { AlertCircle, ChevronRight, LoaderCircle, X } from 'lucide-react';
 import type { Device } from './types';
 import { formatDate } from './format';
 
@@ -50,7 +50,7 @@ export function Loading({ label = 'Kayıtlar yükleniyor…' }: { label?: string
 }
 
 export function EmptyState({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
-  return <div className="empty-state"><div className="empty-icon"><Monitor size={25} /></div><h3>{title}</h3><p>{description}</p>{action}</div>;
+  return <div className="empty-state"><h3>{title}</h3><p>{description}</p>{action}</div>;
 }
 
 export function DeviceStatus({ status }: { status: Device['status'] }) {
@@ -60,7 +60,7 @@ export function DeviceStatus({ status }: { status: Device['status'] }) {
 export function DevicesTable({ devices, onSelect }: { devices: Device[]; onSelect: (device: Device) => void }) {
   return <div className="table-scroll"><table className="data-table devices-table"><thead><tr><th>Cihaz</th><th>Durum</th><th>İşletim sistemi</th><th>Son bağlantı</th><th><span className="sr-only">Detay</span></th></tr></thead>
     <tbody>{devices.map((device) => <tr key={device.device_id}>
-      <td data-label="Cihaz"><button className="device-link" onClick={() => onSelect(device)}><span className="device-icon"><Monitor size={19} /></span><span><strong>{device.hostname}</strong><small>{{ windows: 'Windows', linux: 'Linux', macos: 'macOS' }[device.platform]} · Agent {device.agent_version}</small></span></button></td>
+      <td data-label="Cihaz"><button className="device-link" onClick={() => onSelect(device)}><span><strong>{device.hostname}</strong><small>{{ windows: 'Windows', linux: 'Linux', macos: 'macOS' }[device.platform]} · {device.agent_version}</small></span></button></td>
       <td data-label="Durum"><DeviceStatus status={device.status} /></td>
       <td data-label="İşletim sistemi"><span className="cell-muted">{device.inventory.os_version || 'Henüz bildirilmedi'}</span></td>
       <td data-label="Son bağlantı"><span className="cell-muted">{formatDate(device.last_seen_at, true)}</span></td>
