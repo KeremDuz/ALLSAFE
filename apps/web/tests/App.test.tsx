@@ -85,6 +85,21 @@ describe('role-aware panel access', () => {
     expect(screen.queryByRole('button', { name: /kayıt kodu/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /erişimi iptal/i })).toBeNull();
     expect(fetchMock.mock.calls.some(([path]) => String(path).startsWith('/api/v1/users'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: `${device.hostname} detayını aç` }));
+    expect(screen.queryByRole('button', { name: 'Uzaktan masaüstü' })).toBeNull();
+  });
+
+  it('opens a local-consent desktop request only for the desktop permission', async () => {
+    const admin: User = { ...analyst, role: 'admin', permissions: [...analyst.permissions, 'desktop:manage', 'devices:manage'] };
+    const fetchMock = authenticatedFetch(admin);
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cihazlar' }));
+    fireEvent.click(await screen.findByRole('button', { name: `${device.hostname} detayını aç` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Uzaktan masaüstü' }));
+    expect(screen.getByLabelText('Erişim')).toHaveValue('view');
+    expect(screen.getByRole('button', { name: 'Bağlantı isteği gönder' })).toBeDisabled();
+    expect(fetchMock.mock.calls.some(([path]) => String(path).includes('remote-desktop'))).toBe(false);
   });
 
   it('clears protected views when a revoked or expired session receives a 401', async () => {

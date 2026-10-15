@@ -3,6 +3,7 @@ import { Activity, ArrowRight, Check, CheckCircle2, Clock3, Copy, KeyRound, Layo
 import { ApiError, apiRequest } from './api';
 import PhishCatchPage from './PhishCatchPage';
 import WazuhPage from './WazuhPage';
+import RemoteDesktopPanel from './RemoteDesktopPanel';
 import { DeviceStatus, DevicesTable, EmptyState, ErrorNotice, Loading, Modal } from './components';
 import { auditLabels, formatDate, formatMemory, initials, roles } from './format';
 import type { AuditEvent, AuthConfig, Device, Module, Page, User, UserRole } from './types';
@@ -39,6 +40,7 @@ export default function App() {
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [mobileNav, setMobileNav] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [desktopDevice, setDesktopDevice] = useState<Device | null>(null);
   const [enrollmentOpen, setEnrollmentOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | 'new' | null>(null);
   const [passwordUser, setPasswordUser] = useState<User | null>(null);
@@ -53,6 +55,7 @@ export default function App() {
 
   const clearSession = useCallback((message: string | null) => {
     setUser(null); setPage('overview'); setMobileNav(false); setSelectedDevice(null);
+    setDesktopDevice(null);
     setEnrollmentOpen(false); setEditingUser(null); setPasswordUser(null);
     setNotice(null); setSessionMessage(message);
   }, []);
@@ -145,7 +148,8 @@ export default function App() {
     </div>
     <div className="toast-region" aria-live="polite" aria-atomic="true">{notice && <div className="toast"><CheckCircle2 size={19} /><span>{notice}</span><button className="icon-button" onClick={() => setNotice(null)} aria-label="Bildirimi kapat"><X size={16} /></button></div>}</div>
     {enrollmentOpen && <EnrollmentModal onClose={() => setEnrollmentOpen(false)} onCreated={() => { refresh(); }} />}
-    {selectedDevice && <DeviceModal device={deviceList.find((item) => item.device_id === selectedDevice.device_id) ?? selectedDevice} canRevoke={can('devices:manage')} onClose={() => setSelectedDevice(null)} onRevoked={(value) => { setSelectedDevice(value); refresh(); setNotice(`${value.hostname} cihazının erişimi iptal edildi.`); }} />}
+    {selectedDevice && <DeviceModal device={deviceList.find((item) => item.device_id === selectedDevice.device_id) ?? selectedDevice} canRevoke={can('devices:manage')} canDesktop={can('desktop:manage')} onDesktop={(device) => { setSelectedDevice(null); setDesktopDevice(device); }} onClose={() => setSelectedDevice(null)} onRevoked={(value) => { setSelectedDevice(value); refresh(); setNotice(`${value.hostname} cihazının erişimi iptal edildi.`); }} />}
+    {desktopDevice && can('desktop:manage') && <RemoteDesktopPanel device={desktopDevice} onClose={() => { setDesktopDevice(null); refresh(); }} />}
     {editingUser && <UserModal user={editingUser} local={config.mode === 'local'} currentUserId={user.id} onClose={() => setEditingUser(null)} onSaved={(value) => void afterUserChange(value, editingUser === 'new' ? 'Kullanıcı oluşturuldu.' : 'Kullanıcı bilgileri güncellendi.')} />}
     {passwordUser && <PasswordModal user={passwordUser} currentUserId={user.id} onClose={() => setPasswordUser(null)} onSaved={() => void afterUserChange(passwordUser, 'Parola yenilendi; kullanıcının oturumları kapatıldı.')} />}
   </div>;
@@ -231,7 +235,7 @@ function Detail({ label, value }: { label: string; value: ReactNode }) {
   return <div className="detail-item"><dt>{label}</dt><dd>{value}</dd></div>;
 }
 
-function DeviceModal({ device, canRevoke, onClose, onRevoked }: { device: Device; canRevoke: boolean; onClose: () => void; onRevoked: (device: Device) => void }) {
+function DeviceModal({ device, canRevoke, canDesktop, onDesktop, onClose, onRevoked }: { device: Device; canRevoke: boolean; canDesktop: boolean; onDesktop: (device: Device) => void; onClose: () => void; onRevoked: (device: Device) => void }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -246,7 +250,7 @@ function DeviceModal({ device, canRevoke, onClose, onRevoked }: { device: Device
   return <Modal title={device.hostname} busy={busy} onClose={() => { if (!busy) onClose(); }} wide><div className="device-detail-banner"><div><strong>{{ windows: 'Windows', linux: 'Linux', macos: 'macOS' }[device.platform]} cihazı</strong><span>ALLSAFE Agent {device.agent_version}</span></div><DeviceStatus status={device.status} /></div><dl className="detail-grid"><Detail label="İşletim sistemi" value={device.inventory.os_version || 'Henüz bildirilmedi'} /><Detail label="İşlemci sayısı" value={device.inventory.cpu_count ?? 'Henüz bildirilmedi'} /><Detail label="Toplam bellek" value={formatMemory(device.inventory.memory_total_bytes)} /><Detail label="Son bağlantı" value={formatDate(device.last_seen_at)} /><Detail label="Kayıt tarihi" value={formatDate(device.created_at)} /><Detail label="Erişim iptal tarihi" value={device.revoked_at ? formatDate(device.revoked_at) : 'Erişim iptal edilmedi'} /></dl><div className="device-id"><span>Cihaz kimliği</span><code>{device.device_id}</code></div>{error && <ErrorNotice message={error} />}
     {canRevoke && device.status !== 'revoked' && (confirming ? <form className="danger-confirm" onSubmit={(event) => void revoke(event)}><h3>{device.hostname} erişimi iptal edilsin mi?</h3><p>Bu cihazdan gelen yeni bağlantılar kabul edilmeyecek. Yeniden katılım için yeni kayıt kodu gerekir.</p><div className="field"><label htmlFor="revoke-hostname">Onaylamak için cihaz adını yazın: <strong>{device.hostname}</strong></label><input id="revoke-hostname" autoComplete="off" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></div><div className="modal-actions"><button className="button button-secondary" type="button" disabled={busy} onClick={() => { setConfirming(false); setConfirmation(''); }}>Vazgeç</button><button className="button button-danger" type="submit" disabled={busy || confirmation !== device.hostname}>{busy ? 'İptal ediliyor…' : 'Cihaz erişimini iptal et'}</button></div></form> : <div className="device-danger-zone"><div><strong>Cihaz erişimi</strong><p>Bu cihazın ALLSAFE bağlantısını durdurun.</p></div><button className="button button-danger-subtle" onClick={() => setConfirming(true)}><LockKeyhole size={16} />Erişimi iptal et</button></div>)}
     {device.status === 'revoked' && <div className="info-notice">Bu cihazın erişimi iptal edildi. Yeniden kayıt için yeni bir kayıt kodu oluşturulmalı.</div>}
-    <div className="modal-actions"><button className="button button-secondary" onClick={onClose} disabled={busy}>Kapat</button></div>
+    <div className="modal-actions">{canDesktop && device.platform === 'windows' && <button className="button button-primary" disabled={busy || device.status !== 'online'} onClick={() => onDesktop(device)}>Uzaktan masaüstü</button>}<button className="button button-secondary" onClick={onClose} disabled={busy}>Kapat</button></div>
   </Modal>;
 }
 
@@ -344,7 +348,7 @@ function ModulesPage({ modules, refresh, navigate }: { modules: Resource<Module[
     core: 'Kimlik, cihaz kaydı ve işlem geçmişi',
     phishcatch: 'URL / QR analizi ve tarama geçmişi',
     wazuh: 'Agent kayıtları ve güvenlik alarmları',
-    'endpoint-management': 'Envanter hazır. Cihaz görevleri planlanıyor.',
+    'endpoint-management': 'Temel envanter ve yerel onaylı uzaktan masaüstü.',
   };
   return <><PageHeading title="Modüller"><RefreshButton onClick={refresh} busy={modules.loading} /></PageHeading>{modules.error && <ErrorNotice message={modules.error} retry={refresh} />}{modules.loading && !modules.data ? <Loading /> : <section className="card module-list">{(modules.data ?? []).map((module) => <article className="module-row" key={module.id}><div><h2>{moduleTitle(module)}</h2><p>{descriptions[module.id] ?? module.description}</p></div><span className={`module-status ${module.status}`}>{moduleStatus(module)}</span>{(module.id === 'phishcatch' || module.id === 'wazuh') && <button className="text-button" onClick={() => navigate(module.id as Page)} aria-label={`${moduleTitle(module)} modülünü aç`}>Aç<ArrowRight size={14} /></button>}</article>)}</section>}<p className="section-note">Canlı bağlantı ve model durumu ilgili modülde gösterilir.</p></>;
 }

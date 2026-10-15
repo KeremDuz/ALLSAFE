@@ -38,4 +38,10 @@ export const auditLabels: Record<string, string> = {
   'phishcatch.training_removed': 'Eğitim onayı kaldırıldı',
   'wazuh.mapping.created': 'Wazuh cihaz eşleştirmesi oluşturuldu',
   'wazuh.mapping.removed': 'Wazuh cihaz eşleştirmesi kaldırıldı',
+  'desktop.requested': 'Uzaktan masaüstü istendi',
+  'desktop.approved': 'Uzaktan masaüstü onaylandı',
+  'desktop.denied': 'Uzaktan masaüstü reddedildi',
+  'desktop.started': 'Uzaktan masaüstü başladı',
+  'desktop.closed': 'Uzaktan masaüstü kapandı',
+  'desktop.expired': 'Uzaktan masaüstü süresi doldu',
 };

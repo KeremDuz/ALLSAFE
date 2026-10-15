@@ -46,13 +46,19 @@ public sealed class DeviceCredentialStore
     }
 
     public Task<FileStream> AcquireOperationLeaseAsync(bool createIfMissing, CancellationToken cancellationToken = default)
+        => AcquireLeaseAsync("operation.lock", createIfMissing, cancellationToken);
+
+    public Task<FileStream> AcquireDesktopLeaseAsync(CancellationToken cancellationToken = default)
+        => AcquireLeaseAsync("desktop.lock", createIfMissing: true, cancellationToken);
+
+    private Task<FileStream> AcquireLeaseAsync(string filename, bool createIfMissing, CancellationToken cancellationToken)
     {
         FileStream? lease = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             RejectReparseDirectories();
-            var lockPath = Path.Combine(_directory, "operation.lock");
+            var lockPath = Path.Combine(_directory, filename);
             RejectReparsePoint(lockPath);
             // Existing locks can be held by the read-only virtual service account.
             lease = OpenCredential(lockPath, FileShare.None);

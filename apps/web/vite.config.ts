@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false },
+      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false, ws: true },
       '/health': { target: 'http://127.0.0.1:8000', changeOrigin: false },
     },
   },
@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false },
+      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false, ws: true },
       '/health': { target: 'http://127.0.0.1:8000', changeOrigin: false },
     },
   },

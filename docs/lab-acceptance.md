@@ -10,6 +10,7 @@ Amaç, hazır modüllerin gerçek test cihazı ve dış servislerle birlikte ça
 4. **Fiziksel telefon:** Kurum modunda çalışan hesabıyla giriş yapın; güvenli QR/URL taraması aynı kullanıcıyla panelde görünsün. Oturum iptalini ve bağlantı hatasını deneyin. İnceleme etiketi verin, ayrıca eğitim onayı verin; export'ta URL/kişi olmadığını kontrol edin. Yeniden etiketleme eski eğitim onayını kaldırmalıdır. Bağımsız mobil kullanımı da ayrıca deneyin.
 5. **Wazuh laboratuvarı:** [Wazuh yapılandırması](wazuh.md) ile Server ve Indexer'ı ayrı okuma hesapları/CA dosyalarıyla bağlayın. Windows test bilgisayarının Wazuh ID'sini ALLSAFE cihazıyla açıkça eşleştirin. Güvenli test olayı ve kesinti senaryolarını deneyin.
 6. **Tekrarlanabilir demo:** Telefon taraması → panel sonucu → bağımsız inceleme → eğitim onayı; Windows cihazı → envanter → Wazuh alarm ilişkisi akışlarını kaydedin. Her sonuçta kaynak sürümü, zaman, beklenen davranış ve gözlenen davranış bulunsun.
+7. **Yerel onaylı uzaktan masaüstü:** [Destek uygulamasını](remote-desktop.md) test cihazında açın. Onay/ret, yalnız görüntüleme, fare/klavye, iki taraftan durdurma, kilit/UAC ve oturum/cihaz iptalini ayrı senaryolarda doğrulayın. Otomatik testler ve sentetik görüntü aktarımı gerçek Windows etkileşim kabulünün yerine geçmez.
 
 ## Mevcut sınırlar
 

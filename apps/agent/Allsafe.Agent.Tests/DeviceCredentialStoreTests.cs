@@ -11,6 +11,22 @@ public sealed class DeviceCredentialStoreTests : IDisposable
     private const string DeviceToken = "private-device-store-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     [Fact]
+    public async Task DesktopLeaseCoexistsWithHeartbeatButRejectsAnotherCompanion()
+    {
+        DeviceCredentialStore first = new(_directory, development: true);
+        DeviceCredentialStore second = new(_directory, development: true);
+        await first.SaveAsync(NewCredential());
+        await using var heartbeat = await first.AcquireOperationLeaseAsync(createIfMissing: true);
+        await using (var desktop = await second.AcquireDesktopLeaseAsync())
+        {
+            Assert.Equal(DeviceId, (await first.LoadAsync())!.DeviceId);
+            await Assert.ThrowsAsync<AgentCredentialException>(() => first.AcquireDesktopLeaseAsync());
+        }
+        await using var resumed = await first.AcquireDesktopLeaseAsync();
+        Assert.True(resumed.CanRead);
+    }
+
+    [Fact]
     public async Task MissingCredentialReturnsNull()
     {
         Assert.Null(await new DeviceCredentialStore(_directory, development: true).LoadAsync());

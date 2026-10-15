@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir -r requirements.lock \
 
 USER allsafe
 EXPOSE 8000
-CMD ["uvicorn", "allsafe_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "allsafe_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--ws", "websockets", "--ws-max-size", "786432", "--ws-max-queue", "4", "--ws-per-message-deflate", "false"]

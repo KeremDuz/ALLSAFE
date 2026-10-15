@@ -30,6 +30,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         {
             "devices:read",
             "devices:manage",
+            "desktop:manage",
             "audit:read",
             "modules:read",
             "users:manage",
