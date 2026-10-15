@@ -1,5 +1,9 @@
 # Değişiklik geçmişi
 
+## Yayımlanmamış
+
+- Panel sadeleştirildi: kısa metinler, açık menü, kompakt tablolar, tek formdan giriş ve dar ekran düzeni.
+
 ## 0.1.0-alpha.1 — İlk laboratuvar prototipi
 
 - Ortak API, yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, oturumlar ve işlem geçmişi.
