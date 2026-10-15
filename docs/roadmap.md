@@ -28,4 +28,6 @@ M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, f
 
 ## Daha sonraki kapsam
 
-Patch management, uzaktan masaüstü, DLP, firewall/DNS firewall ve ek üretici bağlantıları ayrı kilometre taşlarıdır. Genel amaçlı uzaktan shell ilk sürüm hedefi değildir. Önce sınırlı ve kayıtlı cihaz işlemlerinin güvenliği ve sonuç takibi tamamlanır.
+Kullanıcı talebiyle yerel onaylı uzaktan masaüstü prototipi ayrı modül olarak eklendi. [Görünür destek uygulaması ve kabul adımları](remote-desktop.md), M3 servis/reboot kabulünden bağımsız olarak hedef Windows laboratuvarında doğrulanmalıdır. Bu ekleme M6 olay yönetiminin tamamlandığı anlamına gelmez.
+
+Patch management, DLP, firewall/DNS firewall ve ek üretici bağlantıları ayrı kilometre taşlarıdır. Genel amaçlı uzaktan shell API'si ilk sürüm hedefi değildir. Önce sınırlı ve kayıtlı cihaz işlemlerinin güvenliği ve sonuç takibi tamamlanır.

@@ -6,10 +6,10 @@ ALLSAFE, kurumsal güvenlik verilerini ve cihaz yönetimini tek panelde birleşt
 
 - **PhishCatch:** Mobil QR/URL analizi, merkezi tarama geçmişi ve doğrulanmış eğitim verisi.
 - **Wazuh:** Güvenlik alarmları ve cihazla ilişkili güvenlik bulguları.
-- **ALLSAFE Agent:** Kendi geliştirdiğimiz Windows cihaz kayıt, bağlantı izleme ve temel envanter ajanı.
+- **ALLSAFE Agent:** Kendi geliştirdiğimiz Windows kayıt/envanter ajanı ve yerel onaylı uzaktan destek uygulaması.
 - **Ortak çekirdek:** Kimlik, yetki, cihazlar, olaylar ve işlem geçmişi.
 
-ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP, firewall ve uzaktan masaüstü sonraki aşamalardadır.
+ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP ve firewall sonraki aşamalardadır. Uzaktan masaüstü, görünür yerel onay gerektiren laboratuvar modülü olarak eklenmiştir.
 
 ## Geliştirme düzeni
 
@@ -107,6 +107,16 @@ Windows ajanı için:
 ```
 
 [Yetenekler, kurulum ve laboratuvar kabulü](docs/windows-agent.md). Ajan aynı kimlikle eşzamanlı çalışmayı engeller; kimlik dosyaları, bağlantı hataları ve paket bütünlüğü ayrıca doğrulanır. Paket manifesti kod imzası değildir.
+
+## Uzaktan masaüstü
+
+Yönetici panelde çevrim içi Windows cihazını açıp **Uzaktan masaüstü** seçer. Gerekçe ve görüntüleme/kontrol kapsamıyla talep gönderir. Hedef bilgisayarda görünür destek uygulaması açık olmalıdır:
+
+```powershell
+.\scripts\start-remote-desktop.ps1
+```
+
+Normal kurulumda korunan cihaz kimliğini okuyabilmek için yerel yönetici tarafından başlatılır. Hedefte ayrı onay verilince ana monitör panelde paylaşılır; kontrol kapsamında fare/klavye yönlendirilebilir. Her iki taraf da durdurabilir. Yanıtsız istek 2 dakikada, onaylı oturum en fazla 10 dakikada biter. Ekran/tuş kaydı ve gözetimsiz erişim yoktur. API **tek worker** ile çalışır; Windows görsel/kilit/UAC kabulü ayrı laboratuvar gerektirir. [Kurulum, güven sınırları ve kabul adımları](docs/remote-desktop.md).
 
 ## API akışı
 

@@ -67,6 +67,8 @@ Model tahmini eğitim etiketi değildir. Her tarama canlı modeli otomatik günc
 
 ## Sonraki aşamaların sınırları
 
-Uzaktan yönetim işleri eklendiğinde izin verilen komut listesi, hedef cihaz yetkisi, iş kimliği, tekrar çalıştırma kontrolü ve doğrulanmış sonuç gerekir. İsteğin kabul edilmesi ile cihazdaki işlemin tamamlanması ayrı durumlar olacaktır. Patch management, uzaktan masaüstü, DLP, firewall ve DNS firewall ilk teslimin dışında kalır.
+Uzaktan yönetim işleri eklendiğinde izin verilen komut listesi, hedef cihaz yetkisi, iş kimliği, tekrar çalıştırma kontrolü ve doğrulanmış sonuç gerekir. İsteğin kabul edilmesi ile cihazdaki işlemin tamamlanması ayrı durumlar olacaktır. Patch management, DLP, firewall ve DNS firewall ilk teslimin dışında kalır.
+
+Uzaktan masaüstü ayrı bir sonraki prototip modülüdür. İnsan yönetici web oturumu, cihaz kimliği ve yerel kullanıcının açık onayı birlikte gerekir. Windows servisi ekran yakalamaz; görünür `desktop` uygulaması kullanıcı oturumunda çalışır. Süreli SQL oturum kaydı ile tek API sürecindeki geçici görüntü/giriş aktarımı ayrıdır; ekran ve tuşlar saklanmaz. [ADR 0007](decisions/0007-remote-desktop.md) ve [çalıştırma belgesi](remote-desktop.md).
 
 Güncel PhishCatch servis sınırı ve ayrı eğitim onayı [ADR 0005](decisions/0005-phishcatch-boundary.md) ve [kurulum belgesinde](phishcatch.md) açıklanır. Wazuh'un ayrı okuma bağlantıları, bilinmeyen/kısmi durumları ve Server origin'ine bağlı cihaz eşleştirmesi [ADR 0006](decisions/0006-wazuh-boundary.md) ve [bağlantı belgesinde](wazuh.md) açıklanır.

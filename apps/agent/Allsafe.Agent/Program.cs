@@ -24,6 +24,14 @@ public static class Program
                 development: options.DevelopmentDirectory is not null);
             using var http = CreateHttpClient();
             var api = new AgentApiClient(http);
+            if (options.Command == "desktop")
+            {
+                RemoteDesktop.NativeDesktopSurface.RequireInteractiveUser(options.DevelopmentDirectory is not null);
+                var identity = await store.LoadAsync() ?? throw new ArgumentException("No device identity exists. Enroll first.");
+                _ = AgentServerUri.Parse(identity.ServerUri.ToString(), options.AllowLoopbackHttp);
+                await using var desktop = await store.AcquireDesktopLeaseAsync();
+                return await RemoteDesktop.DesktopApplication.RunAsync(identity, http);
+            }
             if (options.Command == "status")
             {
                 var identity = await store.LoadAsync() ?? throw new ArgumentException("No device identity exists. Enroll first.");
@@ -149,6 +157,7 @@ public static class Program
         ALLSAFE Windows Agent
         enroll --server https://allsafe.example [--token-stdin]
         run | once | status | replace-credential [--token-stdin]
+        desktop (explicit interactive launch; every session requires local consent)
         Laboratory only: --allow-loopback-http --dev-state-dir <directory>
         Tokens are accepted through a hidden prompt or explicit stdin, never command arguments.
         Default identity directory: %ProgramData%\ALLSAFE\Agent
@@ -161,7 +170,7 @@ internal sealed record CommandOptions(string Command, string? Server, string? De
     public static CommandOptions Parse(string[] args)
     {
         if (args.Length == 0 || args[0] is "help" or "--help") return new("help", null, null, false, false);
-        if (args[0] is not ("enroll" or "run" or "once" or "status" or "replace-credential"))
+        if (args[0] is not ("enroll" or "run" or "once" or "status" or "replace-credential" or "desktop"))
             throw new ArgumentException("Unknown command. Use help.");
         string? server = null, directory = null;
         bool loopback = false, stdin = false;

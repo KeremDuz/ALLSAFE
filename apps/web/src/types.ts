@@ -19,6 +19,11 @@ export interface Device {
   revoked_at: string | null;
   inventory: { os_version?: string | null; cpu_count?: number | null; memory_total_bytes?: number | null };
 }
+export interface RemoteDesktopSession {
+  id: string; device_id: string; operator_name: string; reason: string; mode: 'view' | 'control';
+  status: 'pending' | 'approved' | 'active' | 'denied' | 'closed' | 'expired';
+  created_at: string; expires_at: string; closed_reason: string | null;
+}
 export interface AuditEvent {
   id: string;
   event_type: string;

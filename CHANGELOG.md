@@ -2,6 +2,7 @@
 
 ## Yayımlanmamış
 
+- Yerel onaylı uzaktan masaüstü: yöneticiye ve giriş oturumuna bağlı süreli istek, ayrı görünür Windows destek penceresi, ana monitör JPEG aktarımı, görüntüleme/fare-klavye kapsamları ve iki taraftan durdurma. Tek API worker üzerinde bellek aktarımı, kimlik/yetki yeniden denetimi ve yalnız oturum üst verisini tutan işlem kaydı; gerçek Windows etkileşimi ayrı laboratuvar kabulü gerektirir.
 - Panel sadeleştirildi: kısa metinler, açık menü, kompakt tablolar, tek formdan giriş ve dar ekran düzeni.
 - Windows ajanının kimlik/izin kontrolleri ve eşzamanlı çalışma kilidi güçlendirildi; envanter hatasında heartbeat sürer, bağlantı tekrarları sunucunun bekleme süresini dikkate alır. Servis günlükleri ve kurulum hata temizliği düzenlendi; SHA-256 paket manifesti ve çevrim dışı paket kontrolleri eklendi. Manifest kod imzası değildir; gerçek servis/reboot kabulü ayrı laboratuvar gerektirir.
 
