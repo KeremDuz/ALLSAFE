@@ -3,6 +3,7 @@
 ## Yayımlanmamış
 
 - Panel sadeleştirildi: kısa metinler, açık menü, kompakt tablolar, tek formdan giriş ve dar ekran düzeni.
+- Windows ajanının kimlik/izin kontrolleri ve eşzamanlı çalışma kilidi güçlendirildi; envanter hatasında heartbeat sürer, bağlantı tekrarları sunucunun bekleme süresini dikkate alır. Servis günlükleri ve kurulum hata temizliği düzenlendi; SHA-256 paket manifesti ve çevrim dışı paket kontrolleri eklendi. Manifest kod imzası değildir; gerçek servis/reboot kabulü ayrı laboratuvar gerektirir.
 
 ## 0.1.0-alpha.1 — İlk laboratuvar prototipi
 

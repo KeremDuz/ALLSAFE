@@ -6,7 +6,7 @@ namespace Allsafe.Agent.Tests;
 
 public sealed class DeviceCredentialStoreTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "Allsafe.Agent.Tests", Guid.NewGuid().ToString("N"));
+    private readonly string _directory = Path.Combine(WorkspaceRoot(), ".local", "agent-storage-tests", Guid.NewGuid().ToString("N"));
     private const string DeviceId = "cf8e9b4d-40b3-4eaf-af2c-a43803b99c36";
     private const string DeviceToken = "private-device-store-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
@@ -14,6 +14,126 @@ public sealed class DeviceCredentialStoreTests : IDisposable
     public async Task MissingCredentialReturnsNull()
     {
         Assert.Null(await new DeviceCredentialStore(_directory, development: true).LoadAsync());
+    }
+
+    [Fact]
+    public void VolumeRootCannotBeUsedAsCredentialDirectory()
+    {
+        string volumeRoot = Path.GetPathRoot(_directory)!;
+
+        Assert.Throws<ArgumentException>(() => new DeviceCredentialStore(volumeRoot, development: true));
+    }
+
+    [Fact]
+    public async Task RegularFileInStateDirectoryPathIsNotTreatedAsMissingIdentity()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_directory)!);
+        await File.WriteAllTextAsync(_directory, "unrelated-file");
+
+        await Assert.ThrowsAsync<AgentCredentialException>(() =>
+            new DeviceCredentialStore(_directory, development: true).LoadAsync());
+
+        Assert.Equal("unrelated-file", await File.ReadAllTextAsync(_directory));
+    }
+
+    [Fact]
+    public async Task DirectoryInCredentialFilePathIsNotTreatedAsMissingIdentity()
+    {
+        DeviceCredentialStore store = new(_directory, development: true);
+        await store.SaveAsync(NewCredential());
+        string credentialPath = Path.Combine(_directory, "credential.bin");
+        File.Delete(credentialPath);
+        Directory.CreateDirectory(credentialPath);
+
+        await Assert.ThrowsAsync<AgentCredentialException>(() => store.LoadAsync());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(32 * 1024 + 1)]
+    public async Task InvalidCredentialLengthFailsWithoutReplacingIdentity(int length)
+    {
+        DeviceCredentialStore store = new(_directory, development: true);
+        await store.SaveAsync(NewCredential());
+        string credentialPath = Path.Combine(_directory, "credential.bin");
+        await File.WriteAllBytesAsync(credentialPath, new byte[length]);
+
+        await Assert.ThrowsAsync<AgentCredentialException>(() => store.LoadAsync());
+        await Assert.ThrowsAsync<AgentCredentialException>(() => store.SaveAsync(NewCredential()));
+
+        Assert.Equal(length, new FileInfo(credentialPath).Length);
+        Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task PreCancelledSaveDoesNotCreateStateDirectory()
+    {
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new DeviceCredentialStore(_directory, development: true).SaveAsync(NewCredential(), cancellation.Token));
+
+        Assert.False(Directory.Exists(_directory));
+    }
+
+    [Fact]
+    public async Task ExclusiveOperationLeasePreventsConcurrentCommandsButAllowsCredentialPersistence()
+    {
+        DeviceCredentialStore first = new(_directory, development: true);
+        DeviceCredentialStore second = new(_directory, development: true);
+        await using (FileStream lease = await first.AcquireOperationLeaseAsync(createIfMissing: true))
+        {
+            await first.SaveAsync(NewCredential());
+            Assert.NotNull(await first.LoadAsync());
+
+            await Assert.ThrowsAsync<AgentCredentialException>(() =>
+                second.AcquireOperationLeaseAsync(createIfMissing: true));
+        }
+
+        await using FileStream reacquired = await second.AcquireOperationLeaseAsync(createIfMissing: false);
+        Assert.True(reacquired.CanRead);
+        Assert.False(reacquired.CanWrite);
+        Assert.NotNull(await second.LoadAsync());
+    }
+
+    [Fact]
+    public async Task MissingReadOnlyOperationLeaseFailsWithoutCreatingState()
+    {
+        await Assert.ThrowsAsync<AgentCredentialException>(() =>
+            new DeviceCredentialStore(_directory, development: true).AcquireOperationLeaseAsync(createIfMissing: false));
+
+        Assert.False(Directory.Exists(_directory));
+    }
+
+    [Fact]
+    public async Task BroadReadAccessToOperationLeaseFailsAndDoesNotKeepItLocked()
+    {
+        DeviceCredentialStore store = new(_directory, development: true);
+        (await store.AcquireOperationLeaseAsync(createIfMissing: true)).Dispose();
+        string lockPath = Path.Combine(_directory, "operation.lock");
+        FileInfo file = new(lockPath);
+        FileSecurity security = file.GetAccessControl();
+        security.AddAccessRule(new FileSystemAccessRule(
+            new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null), FileSystemRights.Read, AccessControlType.Allow));
+        file.SetAccessControl(security);
+
+        await Assert.ThrowsAsync<AgentCredentialException>(() => store.AcquireOperationLeaseAsync(createIfMissing: false));
+
+        // Failed validation must dispose its handle, so administrator repair remains possible.
+        using FileStream unlocked = new(lockPath, FileMode.Open, FileAccess.Read, FileShare.None);
+    }
+
+    [Fact]
+    public async Task PreCancelledOperationLeaseDoesNotCreateStateDirectory()
+    {
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new DeviceCredentialStore(_directory, development: true).AcquireOperationLeaseAsync(true, cancellation.Token));
+
+        Assert.False(Directory.Exists(_directory));
     }
 
     [Fact]
@@ -165,11 +285,19 @@ public sealed class DeviceCredentialStoreTests : IDisposable
 
     private static DeviceCredential NewCredential() => new(new Uri("https://allsafe.example/"), DeviceId, DeviceToken);
 
+    private static string WorkspaceRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md"))) return directory.FullName;
+        throw new InvalidOperationException("The agent storage tests must run inside the ALLSAFE workspace.");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))
         {
             Directory.Delete(_directory, recursive: true);
         }
+        else if (File.Exists(_directory)) File.Delete(_directory);
     }
 }
