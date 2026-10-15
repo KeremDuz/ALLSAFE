@@ -1,10 +1,11 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Allsafe.Agent;
 
-public sealed class AgentApiClient
+public sealed class AgentApiClient : IAgentHeartbeatClient
 {
     private const int MaximumResponseBytes = 32 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -17,8 +18,7 @@ public sealed class AgentApiClient
     public AgentApiClient(HttpClient client)
     {
         ArgumentNullException.ThrowIfNull(client);
-        if (client.DefaultRequestHeaders.Authorization is not null || client.DefaultRequestHeaders.Contains("Cookie"))
-            throw new ArgumentException("Agent client must not contain default credentials.", nameof(client));
+        RejectDefaultCredentials(client);
         _client = client;
     }
 
@@ -34,10 +34,13 @@ public sealed class AgentApiClient
         using var response = await SendAsync(request, 201, cancellationToken).ConfigureAwait(false);
         try
         {
-            var payload = JsonSerializer.Deserialize<EnrollmentResponse>(response.Bytes, JsonOptions);
-            if (payload is null || payload.DeviceId is null || payload.AgentToken is null)
+            using var payload = ParseResponse(response.Bytes);
+            var body = payload.RootElement;
+            if (body.ValueKind != JsonValueKind.Object ||
+                !body.TryGetProperty("device_id", out var deviceId) || deviceId.ValueKind != JsonValueKind.String ||
+                !body.TryGetProperty("agent_token", out var agentToken) || agentToken.ValueKind != JsonValueKind.String)
                 throw new AgentApiException(201, false);
-            return new DeviceCredential(server, payload.DeviceId, payload.AgentToken);
+            return new DeviceCredential(server, deviceId.GetString()!, agentToken.GetString()!);
         }
         catch (Exception error) when (error is JsonException or ArgumentException)
         {
@@ -59,7 +62,7 @@ public sealed class AgentApiClient
         using var response = await SendAsync(request, 200, cancellationToken).ConfigureAwait(false);
         try
         {
-            using var payload = JsonDocument.Parse(response.Bytes);
+            using var payload = ParseResponse(response.Bytes);
             if (payload.RootElement.ValueKind != JsonValueKind.Object ||
                 !payload.RootElement.TryGetProperty("device_id", out var deviceId) ||
                 deviceId.ValueKind != JsonValueKind.String || deviceId.GetString() != credential.DeviceId)
@@ -75,7 +78,7 @@ public sealed class AgentApiClient
     {
         var request = new HttpRequestMessage(HttpMethod.Post, new Uri(server, path));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        request.Content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions));
+        request.Content = new ProtectedJsonContent(JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions));
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         return request;
     }
@@ -83,6 +86,7 @@ public sealed class AgentApiClient
     private async Task<BoundedResponse> SendAsync(HttpRequestMessage request, int expectedStatus,
         CancellationToken cancellationToken)
     {
+        RejectDefaultCredentials(_client);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var timeout = _client.Timeout;
         deadline.CancelAfter(timeout == Timeout.InfiniteTimeSpan || timeout > TimeSpan.FromSeconds(30)
@@ -93,20 +97,34 @@ public sealed class AgentApiClient
                 deadline.Token).ConfigureAwait(false);
             var statusCode = (int)response.StatusCode;
             if (statusCode != expectedStatus)
-                throw new AgentApiException(statusCode, statusCode == 429 || statusCode >= 500);
+                throw new AgentApiException(statusCode, statusCode is 408 or 429 || statusCode >= 500,
+                    statusCode is 429 or 503 ? ReadRetryAfter(response) : null);
+            var mediaType = response.Content.Headers.ContentType?.MediaType;
+            if (mediaType is null || !(mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase) ||
+                (mediaType.StartsWith("application/", StringComparison.OrdinalIgnoreCase) &&
+                 mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase))))
+                throw new AgentApiException(statusCode, false);
             if (response.Content.Headers.ContentLength > MaximumResponseBytes)
                 throw new AgentApiException(statusCode, false);
             await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
             using var bytes = new MemoryStream();
             var buffer = new byte[4096];
-            int read;
-            while ((read = await stream.ReadAsync(buffer, deadline.Token).ConfigureAwait(false)) != 0)
+            try
             {
-                if (bytes.Length + read > MaximumResponseBytes)
-                    throw new AgentApiException(statusCode, false);
-                await bytes.WriteAsync(buffer.AsMemory(0, read), deadline.Token).ConfigureAwait(false);
+                int read;
+                while ((read = await stream.ReadAsync(buffer, deadline.Token).ConfigureAwait(false)) != 0)
+                {
+                    if (bytes.Length + read > MaximumResponseBytes)
+                        throw new AgentApiException(statusCode, false);
+                    await bytes.WriteAsync(buffer.AsMemory(0, read), deadline.Token).ConfigureAwait(false);
+                }
+                return new BoundedResponse(bytes.ToArray());
             }
-            return new BoundedResponse(bytes.ToArray());
+            finally
+            {
+                CryptographicOperations.ZeroMemory(buffer);
+                CryptographicOperations.ZeroMemory(bytes.GetBuffer());
+            }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -118,6 +136,50 @@ public sealed class AgentApiClient
         }
     }
 
+    private static void RejectDefaultCredentials(HttpClient client)
+    {
+        if (client.DefaultRequestHeaders.Authorization is not null || client.DefaultRequestHeaders.Contains("Cookie"))
+            throw new ArgumentException("Agent client must not contain default credentials.", nameof(client));
+    }
+
+    private static TimeSpan? ReadRetryAfter(HttpResponseMessage response)
+    {
+        var retryAfter = response.Headers.RetryAfter;
+        return retryAfter?.Delta ?? (retryAfter?.Date is { } date ? date - DateTimeOffset.UtcNow : null);
+    }
+
+    private static JsonDocument ParseResponse(byte[] bytes)
+    {
+        var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 16 });
+        try
+        {
+            RejectDuplicateProperties(document.RootElement);
+            return document;
+        }
+        catch
+        {
+            document.Dispose();
+            throw;
+        }
+    }
+
+    private static void RejectDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name)) throw new JsonException("Ambiguous API response.");
+                RejectDuplicateProperties(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray()) RejectDuplicateProperties(item);
+        }
+    }
+
     private static void ValidateText(string value, int minimum, int maximum)
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length < minimum || value.Length > maximum)
@@ -125,11 +187,21 @@ public sealed class AgentApiClient
     }
 
     private sealed record EnrollmentRequest(string EnrollmentToken, string Hostname, string Platform, string AgentVersion);
-    private sealed record EnrollmentResponse(string? DeviceId, string? AgentToken);
     private sealed record HeartbeatRequest(string DeviceId, string AgentVersion, InventorySnapshot? Inventory);
+    private sealed class ProtectedJsonContent : ByteArrayContent
+    {
+        private readonly byte[] _bytes;
+        public ProtectedJsonContent(byte[] bytes) : base(bytes) => _bytes = bytes;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) CryptographicOperations.ZeroMemory(_bytes);
+            base.Dispose(disposing);
+        }
+    }
     private sealed class BoundedResponse(byte[] bytes) : IDisposable
     {
         public byte[] Bytes { get; } = bytes;
-        public void Dispose() => System.Security.Cryptography.CryptographicOperations.ZeroMemory(Bytes);
+        public void Dispose() => CryptographicOperations.ZeroMemory(Bytes);
     }
 }

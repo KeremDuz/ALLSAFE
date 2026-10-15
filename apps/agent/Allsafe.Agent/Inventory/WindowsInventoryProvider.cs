@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Allsafe.Agent;
 
-public sealed class WindowsInventoryProvider
+public sealed class WindowsInventoryProvider : IInventoryProvider
 {
     public InventorySnapshot Collect()
     {
@@ -13,7 +13,7 @@ public sealed class WindowsInventoryProvider
         var processors = GetActiveProcessorCount(0xffff);
         int? cpuCount = processors is >= 1 and <= 4096 ? (int)processors : null;
         var memory = new MemoryStatus { Length = (uint)Marshal.SizeOf<MemoryStatus>() };
-        long? memoryBytes = GlobalMemoryStatusEx(ref memory) && memory.TotalPhysical <= long.MaxValue
+        long? memoryBytes = GlobalMemoryStatusEx(ref memory) && memory.TotalPhysical is > 0 and <= long.MaxValue
             ? (long)memory.TotalPhysical : null;
         return new InventorySnapshot(os, cpuCount, memoryBytes);
     }

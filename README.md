@@ -6,7 +6,7 @@ ALLSAFE, kurumsal güvenlik verilerini ve cihaz yönetimini tek panelde birleşt
 
 - **PhishCatch:** Mobil QR/URL analizi, merkezi tarama geçmişi ve doğrulanmış eğitim verisi.
 - **Wazuh:** Güvenlik alarmları ve cihazla ilişkili güvenlik bulguları.
-- **ALLSAFE Agent:** Kendi geliştireceğimiz Windows cihaz kayıt, izleme ve sınırlı yönetim ajanı.
+- **ALLSAFE Agent:** Kendi geliştirdiğimiz Windows cihaz kayıt, bağlantı izleme ve temel envanter ajanı.
 - **Ortak çekirdek:** Kimlik, yetki, cihazlar, olaylar ve işlem geçmişi.
 
 ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP, firewall ve uzaktan masaüstü sonraki aşamalardadır.
@@ -102,10 +102,11 @@ Windows ajanı için:
 
 ```powershell
 .\scripts\check-agent.ps1
+.\scripts\test-agent-package.ps1
 .\scripts\publish-agent.ps1
 ```
 
-[Kurulum ve laboratuvar kabulü](docs/windows-agent.md).
+[Yetenekler, kurulum ve laboratuvar kabulü](docs/windows-agent.md). Ajan aynı kimlikle eşzamanlı çalışmayı engeller; kimlik dosyaları, bağlantı hataları ve paket bütünlüğü ayrıca doğrulanır. Paket manifesti kod imzası değildir.
 
 ## API akışı
 

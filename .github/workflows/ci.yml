@@ -67,6 +67,9 @@ jobs:
   agent-checks:
     name: Agent checks
     runs-on: windows-latest
+    env:
+      DOTNET_CLI_HOME: ${{ github.workspace }}/.local/dotnet-home
+      NUGET_PACKAGES: ${{ github.workspace }}/.local/nuget
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v6
@@ -76,5 +79,7 @@ jobs:
         run: dotnet restore apps/agent/Allsafe.Agent.Tests/Allsafe.Agent.Tests.csproj --locked-mode
       - name: Protocol and Windows credential tests
         run: dotnet test apps/agent/Allsafe.Agent.Tests/Allsafe.Agent.Tests.csproj --no-restore --configuration Release
+      - name: Package integrity and path safety tests
+        run: .\scripts\test-agent-package.ps1
       - name: Windows package
-        run: dotnet publish apps/agent/Allsafe.Agent/Allsafe.Agent.csproj --configuration Release --runtime win-x64 --self-contained true --output .local/agent-package -p:RestoreLockedMode=true
+        run: .\scripts\publish-agent.ps1
