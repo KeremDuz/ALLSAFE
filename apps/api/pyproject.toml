@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "allsafe-api"
+version = "0.1.0"
+description = "ALLSAFE device enrollment and platform foundation API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "SQLAlchemy>=2.0,<3",
+    "pydantic-settings>=2.7,<3",
+    "alembic>=1.14,<2",
+    "argon2-cffi>=25,<26",
+    "Authlib>=1.6,<2",
+    "itsdangerous>=2.2,<3",
+    "httpx>=0.28,<1",
+]
+
+[project.optional-dependencies]
+dev = ["httpx>=0.28,<1", "pytest>=8.3,<10", "ruff>=0.11,<1"]
+postgres = ["psycopg[binary]>=3.2,<4"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/allsafe_api"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]
