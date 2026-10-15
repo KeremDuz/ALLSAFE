@@ -21,6 +21,12 @@ const errorMessages: Record<string, string> = {
   'Too many login attempts; try later': 'Çok fazla giriş denemesi yapıldı. Beş dakika sonra yeniden deneyin.',
   'Local password login is disabled': 'Bu kurumda giriş, kurumsal hesap üzerinden yapılıyor.',
   'Device not found': 'Cihaz bulunamadı. Listeyi yenileyin.',
+  'Wazuh server is not configured': 'Wazuh Server bağlantısı henüz yapılandırılmadı.',
+  'Wazuh agent verification unavailable': 'Wazuh agent kaydı doğrulanamadı. Server bağlantısını kontrol edin.',
+  'Wazuh agent not found': 'Wazuh agent kaydı bulunamadı. Listeyi yenileyin.',
+  'Device or Wazuh agent already mapped': 'Bu cihaz veya Wazuh agent başka bir kayıtla eşleştirilmiş. Listeyi yenileyin.',
+  'Device has no Wazuh mapping': 'Bu cihazın Wazuh eşleştirmesi yok. Önce bir agent ile eşleştirin.',
+  'Mapping not found': 'Cihaz eşleştirmesi bulunamadı. Listeyi yenileyin.',
   'User not found': 'Kullanıcı bulunamadı. Listeyi yenileyin.',
   'Forbidden': 'Bu işlem için yetkiniz bulunmuyor.',
   'Passwords are managed by the identity provider': 'Parolalar kurumsal kimlik sağlayıcısı tarafından yönetiliyor.',
@@ -48,7 +54,7 @@ export async function apiRequest<T>(path: string, options: { method?: string; bo
     try { detail = (await response.json() as { detail?: unknown }).detail; } catch { /* The proxy may return a non-JSON error. */ }
     const message = response.status === 401
       ? (path.endsWith('/auth/login') ? 'E-posta veya parola hatalı ya da hesap etkin değil.' : 'Oturumunuz sona erdi. Yeniden giriş yapın.')
-      : response.status === 422 ? 'Alanları kontrol edin. Parola en az 12 karakter olmalı; zorunlu alanlar boş bırakılamaz.'
+      : response.status === 422 ? (path.startsWith('/api/v1/wazuh/') ? 'Wazuh sorgusu veya eşleştirme alanları geçerli değil. Alanları kontrol edin.' : 'Alanları kontrol edin. Parola en az 12 karakter olmalı; zorunlu alanlar boş bırakılamaz.')
       : response.status === 403 ? 'Bu işlem için yetkiniz bulunmuyor. Oturumunuzu yenilemeniz gerekebilir.'
       : typeof detail === 'string' && errorMessages[detail] ? errorMessages[detail]
       : `İşlem tamamlanamadı (${response.status}). Yeniden deneyin.`;

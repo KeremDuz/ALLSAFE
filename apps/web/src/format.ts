@@ -36,4 +36,6 @@ export const auditLabels: Record<string, string> = {
   'phishcatch.review_created': 'Bağımsız tarama incelemesi kaydedildi',
   'phishcatch.training_approved': 'Eğitim verisi onaylandı',
   'phishcatch.training_removed': 'Eğitim onayı kaldırıldı',
+  'wazuh.mapping.created': 'Wazuh cihaz eşleştirmesi oluşturuldu',
+  'wazuh.mapping.removed': 'Wazuh cihaz eşleştirmesi kaldırıldı',
 };

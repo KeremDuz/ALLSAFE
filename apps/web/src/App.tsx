@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { ApiError, apiRequest } from './api';
 import PhishCatchPage from './PhishCatchPage';
+import WazuhPage from './WazuhPage';
 import { DeviceStatus, DevicesTable, EmptyState, ErrorNotice, Loading, Modal } from './components';
 import { auditLabels, formatDate, formatMemory, initials, roles } from './format';
 import type { AuditEvent, AuthConfig, Device, Module, Page, User, UserRole } from './types';
@@ -116,6 +117,7 @@ export default function App() {
     { page: 'overview', label: 'Genel görünüm', icon: <LayoutDashboard size={19} />, visible: true },
     { page: 'devices', label: 'Cihazlar', icon: <Monitor size={19} />, visible: can('devices:read') },
     { page: 'phishcatch', label: 'PhishCatch', icon: <Search size={19} />, visible: can('scans:own:read') },
+    { page: 'wazuh', label: 'Wazuh', icon: <Shield size={19} />, visible: can('wazuh:read') },
     { page: 'users', label: 'Kullanıcılar', icon: <Users size={19} />, visible: can('users:manage') },
     { page: 'audit', label: 'İşlem geçmişi', icon: <Activity size={19} />, visible: can('audit:read') },
     { page: 'modules', label: 'Modüller', icon: <Workflow size={19} />, visible: can('modules:read') },
@@ -144,6 +146,7 @@ export default function App() {
         {visiblePage === 'overview' && (can('devices:read') ? <Overview devices={devices} audit={audit} modules={modules} users={users.data ?? []} canEnroll={can('devices:manage')} refresh={refresh} onSelect={setSelectedDevice} onEnroll={() => setEnrollmentOpen(true)} navigate={navigate} /> : <AccountOverview user={user} config={config} />)}
         {visiblePage === 'devices' && <DevicePage devices={devices} canEnroll={can('devices:manage')} onEnroll={() => setEnrollmentOpen(true)} onSelect={setSelectedDevice} refresh={refresh} />}
         {visiblePage === 'phishcatch' && <PhishCatchPage user={user} users={users.data ?? []} />}
+        {visiblePage === 'wazuh' && <WazuhPage user={user} devices={devices.data} devicesError={devices.error} />}
         {visiblePage === 'users' && <UsersPage users={users} currentUser={user} local={config.mode === 'local'} refresh={refresh} onEdit={setEditingUser} onPassword={setPasswordUser} />}
         {visiblePage === 'audit' && <AuditPage audit={audit} users={users.data ?? []} devices={deviceList} refresh={refresh} />}
         {visiblePage === 'modules' && <ModulesPage modules={modules} refresh={refresh} />}
@@ -348,7 +351,7 @@ function ModulesPage({ modules, refresh }: { modules: Resource<Module[]>; refres
   const descriptions: Record<string, string> = {
     core: 'Kurum hesapları, cihaz kaydı, bağlantı takibi, temel envanter ve işlem geçmişi aynı çekirdek üzerinden yönetilir.',
     phishcatch: 'Hesaba bağlı merkezi taramalar, bağımsız inceleme ve eğitim onayı hazır. Analiz servisi bağlantısı ve model kullanılabilirliği PhishCatch ekranında gösterilir.',
-    wazuh: 'Güvenlik alarmları ve agent bilgilerinin aynı cihaz kayıtlarına bağlanması planlanıyor. Server ve Indexer bağlantıları henüz uygulanmadı.',
+    wazuh: 'Server ve Indexer bağlantıları ayrı izlenir; güvenlik alarmları ve agent kayıtları açık cihaz eşleştirmesiyle gösterilir. Sunucu yapılandırması ve gerçek laboratuvar doğrulaması ayrıca gerekir.',
     'endpoint-management': 'Windows servis ajanının kayıt, bağlantı ve temel envanter kodu hazır. Kurulum laboratuvarda ayrıca doğrulanır; cihaz görevleri sonraki aşamadadır. Patch management ilk kapsamın dışında.',
   };
   return <><PageHeading title="Modüller" description="Kullanılabilir özellikler ve geliştirilecek güvenlik bağlantıları."><RefreshButton onClick={refresh} busy={modules.loading} /></PageHeading>{modules.error && <ErrorNotice message={modules.error} retry={refresh} />}{modules.loading && !modules.data ? <Loading /> : <div className="modules-grid">{(modules.data ?? []).map((module) => <article className={`card module-card module-card-${module.status}`} key={module.id}><div className="module-card-top"><span className={`module-large-icon ${module.status === 'available' ? 'module-symbol-active' : ''}`}>{module.id === 'core' ? <ShieldCheck size={27} /> : module.id === 'phishcatch' ? <Search size={27} /> : module.id === 'wazuh' ? <Shield size={27} /> : <Monitor size={27} />}</span><span className={`module-status ${module.status}`}>{module.status === 'available' ? <CheckCircle2 size={13} /> : <Clock3 size={13} />}{module.status === 'available' ? 'Kullanılabilir' : module.status === 'planned' ? 'Planlandı' : 'Bağlı değil'}</span></div><h2>{moduleTitle(module)}</h2><p>{descriptions[module.id] ?? module.description}</p>{module.capabilities.length > 0 ? <div className="capability-list">{module.capabilities.filter((capability) => capabilityLabels[capability]).map((capability) => <span key={capability}><Check size={12} />{capabilityLabels[capability]}</span>)}</div> : <div className="module-pending-note"><Workflow size={15} />Entegrasyon henüz kullanılabilir değil</div>}</article>)}</div>}<div className="scope-note"><div><span className="eyebrow">İLK GELİŞTİRME AŞAMASI</span><h2>Görünürlükten başlayıp yönetimi büyütüyoruz.</h2><p>PhishCatch mobil desteği, Wazuh güvenlik entegrasyonu ve kendi Windows agent’ımız proje kapsamında. DLP, firewall ve patch management sonraki aşamalara bırakıldı.</p></div><ShieldCheck size={46} strokeWidth={1.25} /></div></>;

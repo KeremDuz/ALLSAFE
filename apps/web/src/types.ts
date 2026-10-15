@@ -34,7 +34,7 @@ export interface Module {
   capabilities: string[];
   description: string;
 }
-export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch';
+export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch' | 'wazuh';
 export type VerifiedLabel = 'clean' | 'malicious' | 'uncertain';
 export interface ScanAnalysis {
   final_verdict: 'clean' | 'malicious' | 'unknown';
@@ -57,3 +57,25 @@ export interface PhishStatus {
   html_model_available: boolean | null; error_code: string | null;
 }
 export interface TrainingExport { feature_version: string; samples: { label: 0 | 1; features: Record<string, number> }[] }
+export type WazuhState = 'unconfigured' | 'connected' | 'partial' | 'error';
+export interface WazuhConnection {
+  state: WazuhState; checked_at: string; error_code: string | null; partial: boolean;
+  total?: number | null; total_relation?: 'eq' | 'gte' | null;
+}
+export interface WazuhResult<T> extends WazuhConnection {
+  items: T[] | null; total: number | null; total_relation: 'eq' | 'gte' | null;
+}
+export interface WazuhStatus { server: WazuhConnection; indexer: WazuhConnection }
+export interface WazuhAgent {
+  agent_id: string; name: string | null; status: string | null; version: string | null;
+  last_keepalive: string | null; device_id: string | null;
+  os: { name: string | null; version: string | null; platform: string | null; arch: string | null };
+}
+export interface WazuhAlert {
+  index: string; alert_id: string; timestamp: string | null; agent_id: string | null;
+  agent_name: string | null; rule_id: string | null; level: number | null;
+  description: string | null; groups: string[]; device_id: string | null;
+}
+export interface WazuhMapping {
+  id: string; device_id: string; agent_id: string; server_scope: string; created_at: string;
+}

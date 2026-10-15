@@ -11,7 +11,8 @@ flowchart TB
     Mobile -->|"Bağımsız mod"| Phish["PhishCatch analiz servisi"]
     Core --> Phish
     Agent["Windows ALLSAFE Agent"] --> Core
-    Wazuh["Wazuh bağlantısı — sonraki aşama"] <--> Core
+    Core --> Server["Wazuh Server — agent bilgisi"]
+    Core --> Indexer["Wazuh Indexer — alarmlar"]
     Core --> Database["Ortak veritabanı"]
 ```
 
@@ -45,7 +46,7 @@ Bu milestone gerçek Windows servisini, web arayüzünü veya uzaktan komut çal
 4. Sunucu ayrı bir cihaz token'ı verir. Heartbeat bu token ile doğrulanır; bir cihaz başka cihaz adına yazamaz.
 5. Yönetici cihazları sunucunun kayıt ve son bağlantı zamanlarıyla listeler. Bağlantı durumu son heartbeat'ten hesaplanır; saat bilgisi UTC tutulur.
 
-Rastgele token'ların yalnızca özetleri veritabanında saklanır. Token'lar URL parametrelerinde, günlüklerde veya kaynak kodda yer almaz. Geliştirme dışındaki iletişim TLS gerektirir. Cihaz erişim iptali ilk milestone'da vardır; token rotasyonu üretim öncesi tamamlanacak kimlik yaşam döngüsünün parçasıdır.
+Rastgele token'ların yalnızca özetleri veritabanında saklanır. Token'lar URL parametrelerinde, günlüklerde veya kaynak kodda yer almaz. Geliştirme dışındaki iletişim TLS gerektirir. Cihaz erişim iptali ve token rotasyonu uygulanmıştır; yeni anahtarın cihaza güvenli kurulması ayrı kabul adımıdır.
 
 Başlangıçtaki yönetici erişim token'ı yalnızca yerel geliştirme ve test içindir. Ortam değişkeninden alınır; istemci uygulamasına gömülmez. Bu mekanizma üretim yetkilendirmesi sayılmaz. Üretimden önce OIDC tabanlı kullanıcı girişi, RBAC, işlem kaydı ve güvenli cihaz kimlik yaşam döngüsü tamamlanmalıdır.
 
@@ -68,4 +69,4 @@ Model tahmini eğitim etiketi değildir. Her tarama canlı modeli otomatik günc
 
 Uzaktan yönetim işleri eklendiğinde izin verilen komut listesi, hedef cihaz yetkisi, iş kimliği, tekrar çalıştırma kontrolü ve doğrulanmış sonuç gerekir. İsteğin kabul edilmesi ile cihazdaki işlemin tamamlanması ayrı durumlar olacaktır. Patch management, uzaktan masaüstü, DLP, firewall ve DNS firewall ilk teslimin dışında kalır.
 
-Güncel PhishCatch servis sınırı ve ayrı eğitim onayı [ADR 0005](decisions/0005-phishcatch-boundary.md) ve [kurulum belgesinde](phishcatch.md) açıklanır.
+Güncel PhishCatch servis sınırı ve ayrı eğitim onayı [ADR 0005](decisions/0005-phishcatch-boundary.md) ve [kurulum belgesinde](phishcatch.md) açıklanır. Wazuh'un ayrı okuma bağlantıları, bilinmeyen/kısmi durumları ve Server origin'ine bağlı cihaz eşleştirmesi [ADR 0006](decisions/0006-wazuh-boundary.md) ve [bağlantı belgesinde](wazuh.md) açıklanır.

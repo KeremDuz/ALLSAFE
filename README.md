@@ -15,7 +15,7 @@ ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP, fi
 
 `main` kararlı sürümleri, `develop` entegrasyonu tutar. İş dalları, ilgili çalışma başladığında `feat/*`, `fix/*`, `hotfix/*` ve `release/*` adlarıyla açılır. Feature PR'ları squash ile `develop`'a, release PR'ları geçmişi koruyan merge ile `main`'e alınır.
 
-## İlk çalışan parça
+## İlk prototipin durumu
 
 FastAPI çekirdeği, SQLAlchemy kayıt sistemi ve Alembic migration'ı hazırdır:
 
@@ -25,7 +25,7 @@ FastAPI çekirdeği, SQLAlchemy kayıt sistemi ve Alembic migration'ı hazırdı
 - Cihaz erişimini iptal etme ve işlem geçmişi.
 - Yetki ayrımı, kayıt tekrarı, süre aşımı ve kalıcılık testleri.
 
-Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim onayı yetkisi, kullanıcı oturumları ve cihaz anahtarı rotasyonu eklenmiştir. OpenID Connect için yapılandırılabilir giriş ve açık hesap eşleştirmesi vardır; gerçek kurum sağlayıcısıyla kabul testi ayrıca gerekir. Web paneli; gerçek cihaz listesi, kayıt kodu oluşturma, cihaz erişimini iptal etme, kullanıcı yönetimi ve işlem geçmişini içerir. Çalışanlar kendi hesap bilgilerini görür; kurum ekranları role göre açılır. Windows ajanı; DPAPI korumalı cihaz kimliği, konsol/servis modu, heartbeat ve temel envanteri içerir. Servis kurulumu ayrı laboratuvar kabulü gerektirir. PhishCatch; mobil kurum oturumu, merkezi QR/URL geçmişi, bağımsız inceleme ve açık eğitim onayıyla bağlanır. Gerçek model dosyaları ve fiziksel telefon kabulü ayrıca gerekir. Wazuh bağlantısı sonraki aşamadır. PhishCatch kaynak bağlantısının bulunması, servisinin otomatik çalıştığı anlamına gelmez.
+Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim onayı yetkisi, kullanıcı oturumları ve cihaz anahtarı rotasyonu eklenmiştir. OpenID Connect için yapılandırılabilir giriş ve açık hesap eşleştirmesi vardır; gerçek kurum sağlayıcısıyla kabul testi ayrıca gerekir. Web paneli cihaz listesi, kayıt kodu, erişim iptali, kullanıcı yönetimi ve işlem geçmişini içerir. Windows ajanı DPAPI korumalı kimlik, konsol/servis modu, heartbeat ve temel envanteri içerir; servis kurulumu ayrı laboratuvar kabulü gerektirir. PhishCatch mobil kurum oturumu, merkezi QR/URL geçmişi, bağımsız inceleme ve açık eğitim onayıyla bağlanır; gerçek model dosyaları ve fiziksel telefon kabulü ayrıca gerekir. Wazuh için ayrı Server/Indexer bağlantıları, agent ve alarm okuması, açık cihaz eşleştirmesi hazırdır; sunucu henüz olmadığından canlı kabul yapılmamıştır. Dış servislerin kaynak kodunun veya bağlantı ayarının bulunması çalıştıklarını kanıtlamaz. [Laboratuvar kabul sırası](docs/lab-acceptance.md).
 
 ## Yerel çalıştırma
 
@@ -120,7 +120,7 @@ Windows ajanı için:
 
 ## Proje belgeleri
 
-[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Windows ajanı](docs/windows-agent.md) · [PhishCatch bağlantısı](docs/phishcatch.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
+[Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Windows ajanı](docs/windows-agent.md) · [PhishCatch bağlantısı](docs/phishcatch.md) · [Wazuh bağlantısı](docs/wazuh.md) · [Laboratuvar kabulü](docs/lab-acceptance.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
 
 ## PhishCatch
 
