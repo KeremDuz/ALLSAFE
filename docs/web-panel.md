@@ -66,10 +66,12 @@ Giriş ekranı `GET /api/v1/auth/config` üzerinden giriş yöntemini öğrenir.
 | İşlem geçmişi | Kullanıcı ve cihaz işlemlerinin aktörü, hedefi ve zamanı | Yönetici ve analist |
 | Modüller | Çekirdek ve bağlanması beklenen modüllerin gerçek API durumu | Yönetici ve analist |
 | Hesap bilgisi | Oturum sahibinin adı, e-postası, rolü ve izinleri | Tüm giriş yapan kullanıcılar |
+| PhishCatch | URL taraması, kendi geçmişi; kurum geçmişi ve inceleme; ayrı eğitim onayı/export | Tüm kullanıcılar kendi geçmişi; yönetici/analist inceleme; açık eğitim izni onay |
+| Wazuh | Server/Indexer durumu, agent ve alarm özetleri; yerel cihaz eşleştirmesi | Yönetici/analist okuma; yönetici eşleştirme |
 
-Çalışan, bu aşamada kendi hesap bilgisini görür; şirket cihazlarını ve işlem geçmişini okuyamaz. PhishCatch mobil taramaları henüz bu ekrana bağlanmış değildir. Analist okuma yapabilir; kayıt daveti ve cihaz erişimi iptali yapamaz. Yönetici kullanıcıları ve cihaz kayıt işlemlerini yönetir. Panelin işlemi göstermemesi güvenlik sınırı değildir; API her istekte güncel yetkiyi kontrol eder.
+Çalışan kendi hesabını, PhishCatch taramalarını ve geçmişini görür; şirket cihazlarını ve işlem geçmişini okuyamaz. Kurum modunda mobil QR/URL taraması da aynı kullanıcı geçmişine bağlanır. Analist kurum taramalarını inceleyebilir ve Wazuh okuyabilir; cihaz veya Wazuh eşleştirme yönetimi yapamaz. Panelin işlemi göstermemesi güvenlik sınırı değildir; API her istekte güncel yetkiyi kontrol eder.
 
-`training_permission` role eklenen ayrı bir izin alanıdır. Bu alan eğitim örneği onaylama hakkını belirtir; cihaz yönetme hakkı vermez. Panelde bu izni düzenleyebilmek tarama geçmişi, doğrulanmış eğitim etiketi veya model yükseltme akışının uygulanmış olduğu anlamına gelmez.
+`training_permission` role eklenen ayrı bir izin alanıdır. Doğrulanmış örneğin ayrıca eğitim için onaylanması ve kimlik/URL içermeyen sayısal özelliklerin export edilmesi bu izinle yapılır. Model eğitimi ve model yayımlama ayrıca hazırlanacaktır; bir tahmin kendi kendine eğitim etiketi olmaz.
 
 Kullanıcının rolü, erişim durumu veya eğitim izni değiştiğinde ilgili kullanıcının mevcut oturumları iptal edilir. Yerel parola yenileme de oturumları iptal eder. Kullanıcı tekrar giriş yapar. Son etkin yöneticiyi devre dışı bırakmak veya yönetici rolünden çıkarmak API tarafından reddedilir. Ad değişikliği tek başına oturum iptaline neden olmaz.
 
@@ -77,7 +79,7 @@ Kullanıcının rolü, erişim durumu veya eğitim izni değiştiğinde ilgili k
 
 1. Yönetici kayıt davetine bir etiket ve geçerlilik süresi verir.
 2. API bir defa kullanılabilecek kodu ve son kullanma zamanını döndürür. Kod hassas bir kayıt yetkisidir; yerel depolamaya veya işlem geçmişine yazılmaz.
-3. Agent ayrı `POST /api/v1/agent/enroll` uç noktasını kullanır. Panel cihaz yerine kayıt yapmaz. Bu aşamada kayıt/heartbeat akışı laboratuvar betiğiyle denenebilir; gerçek Windows servis ajanı sonraki aşamadır.
+3. Agent ayrı `POST /api/v1/agent/enroll` uç noktasını kullanır. Panel cihaz yerine kayıt yapmaz. Windows ajanı hazırdır; [servis kabulü](windows-agent.md) ayrı test bilgisayarında yapılır.
 4. Kayıtlı cihaz listeye eklenir. Düzenli heartbeat varsa API'nin zaman sınırına göre çevrim içi görünür. Hiç heartbeat alınmayan veya zaman sınırını geçen cihaz çevrim dışıdır. Durum, sürekli bir canlı masaüstü bağlantısı anlamına gelmez.
 5. Yönetici cihaz detayında hedefi doğrulayarak erişimi iptal eder. İptalden sonra cihaz anahtarı heartbeat için kabul edilmez; olay kaydı ve cihaz geçmişi korunur. Yeniden bağlanması gereken cihaz yeni davetle kaydedilir.
 
@@ -89,7 +91,7 @@ Panel kullanıcı oturumunu API'nin `HttpOnly` çereziyle taşır. JavaScript ot
 
 Oturum doğrulanırken yükleniyor durumu gösterilir. Listelerin boş olması hata sayılmaz. API hatası veya bağlantı kesintisi yükleme hatası olarak gösterilir; başarısız işlem başarılı gibi sunulmaz. Kimlik doğrulaması bittiğinde yetkiler API'deki kullanıcı kaydından okunur. Oturum süresi dolmuşsa veya sunucuda iptal edilmişse `401` sonucu yeniden giriş gerektirir; `403` bir yetki reddidir.
 
-Cihaz ve genel görünüm verileri son API yüklemesine aittir. Kullanıcı yenilemeyle güncel listeyi alır; panelde görünmek anlık telemetri sağlandığı anlamına gelmez. Liste uç noktaları bir istekte en fazla 500 kayıt döndürür; bu aşamada sunucu sayfalaması yoktur. Genel görünümdeki sayılar yüklenen kayıtları temsil eder, sınırsız kurum toplamı değildir. Gerekli alanlar gelmiyorsa bilinmiyor/boş durumu korunur; eksik envanter sahte değerlerle doldurulmaz. PhishCatch ve Wazuh bağlantıları uygulanana kadar kullanılamıyor olarak gösterilir.
+Cihaz ve genel görünüm verileri son API yüklemesine aittir. Kullanıcı yenilemeyle güncel listeyi alır; panelde görünmek anlık telemetri sağlandığı anlamına gelmez. Core listeleri bir istekte en fazla 500 kayıt döndürür; genel görünüm sayıları yüklenen kayıtlardır. PhishCatch sayfası ayrı servis ve model durumlarını gösterir; eksik analiz temiz kabul edilmez. Wazuh sayfası ayrı Server/Indexer durumları ve sınırlı zaman penceresindeki sonuçları gösterir; yapılandırılmamış/hatalı kaynakta sayı bilinmiyor kalır. Ayrıntılar [PhishCatch](phishcatch.md) ve [Wazuh](wazuh.md) belgelerindedir.
 
 ## Laboratuvar kabul akışı
 

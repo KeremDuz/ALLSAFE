@@ -36,6 +36,19 @@ class Settings(BaseSettings):
     phishcatch_integration_key: SecretStr | None = None
     phishcatch_timeout_seconds: int = Field(default=45, ge=1, le=60)
     phishcatch_allow_loopback_http: bool = False
+    wazuh_server_url: str | None = None
+    wazuh_server_username: str | None = None
+    wazuh_server_password: SecretStr | None = None
+    wazuh_server_ca_file: str | None = None
+    wazuh_indexer_url: str | None = None
+    wazuh_indexer_username: str | None = None
+    wazuh_indexer_password: SecretStr | None = None
+    wazuh_indexer_ca_file: str | None = None
+    wazuh_timeout_seconds: int = Field(default=5, ge=1, le=30)
+    wazuh_allow_loopback_http: bool = False
+    wazuh_alert_index: str = Field(
+        default="wazuh-alerts-*", pattern=r"^wazuh-alerts-[a-zA-Z0-9.*_-]+$"
+    )
 
     @field_validator(
         "bootstrap_admin_token",
@@ -43,6 +56,8 @@ class Settings(BaseSettings):
         "session_signing_secret",
         "oidc_client_secret",
         "phishcatch_integration_key",
+        "wazuh_server_password",
+        "wazuh_indexer_password",
         mode="before",
     )
     @classmethod
@@ -120,4 +135,43 @@ class Settings(BaseSettings):
                 for value in browser_urls
             ):
                 raise ValueError("OIDC outside loopback requires secure cookies")
+        return self
+
+    @field_validator(
+        "wazuh_server_url",
+        "wazuh_indexer_url",
+        "wazuh_server_username",
+        "wazuh_indexer_username",
+        "wazuh_server_ca_file",
+        "wazuh_indexer_ca_file",
+        mode="before",
+    )
+    @classmethod
+    def empty_wazuh_setting_is_unconfigured(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @model_validator(mode="after")
+    def validate_wazuh_origins(self) -> "Settings":
+        for value in (self.wazuh_server_url, self.wazuh_indexer_url):
+            if value is None:
+                continue
+            parsed = urlsplit(value)
+            if (
+                not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+                or parsed.path not in {"", "/"}
+            ):
+                raise ValueError(
+                    "Wazuh endpoints must be server origins without embedded credentials"
+                )
+            _ = parsed.port
+            if parsed.scheme != "https" and not (
+                self.wazuh_allow_loopback_http
+                and parsed.scheme == "http"
+                and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+            ):
+                raise ValueError("Wazuh requires HTTPS outside an explicitly enabled loopback lab")
         return self

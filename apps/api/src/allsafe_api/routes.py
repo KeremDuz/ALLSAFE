@@ -84,6 +84,14 @@ def readiness(session: DatabaseSession) -> dict[str, str]:
 
 @router.get("/api/v1/modules", response_model=list[ModuleResponse], tags=["Modules"])
 def list_modules(_: ModuleReader, request: Request) -> list[ModuleResponse]:
+    configured = request.app.state.settings
+    wazuh_configured = any(
+        all(
+            getattr(configured, f"wazuh_{component}_{field}")
+            for field in ("url", "username", "password")
+        )
+        for component in ("server", "indexer")
+    )
     phishcatch_configured = bool(
         request.app.state.settings.phishcatch_url
         and request.app.state.settings.phishcatch_integration_key
@@ -117,9 +125,12 @@ def list_modules(_: ModuleReader, request: Request) -> list[ModuleResponse]:
         ModuleResponse(
             id="wazuh",
             name="Wazuh",
-            status="unavailable",
-            capabilities=[],
-            description="Server and Indexer connectors are not implemented yet.",
+            status="available" if wazuh_configured else "unavailable",
+            capabilities=["agent-status", "security-alerts", "explicit-device-mapping"],
+            description=(
+                "Read-only Server and Indexer integration; live connection state is shown "
+                "separately on the Wazuh page."
+            ),
         ),
         ModuleResponse(
             id="endpoint-management",

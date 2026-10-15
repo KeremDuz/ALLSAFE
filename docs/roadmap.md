@@ -16,7 +16,7 @@ Bu sıra, çalışan bir uçtan uca akış üretmek için hazırlanmıştır. Ta
 
 M1 çekirdeği ve M2 kimlik/panel akışı tamamlandı. Yerel API üzerinde yönetici ve çalışan oturumları, gerçek cihaz listesi ve rol sınırları doğrulandı. Panel testleri hata durumunda bilinmeyen sayıları sıfır olarak göstermediğini de kontrol eder.
 
-M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, fiziksel envanter, aynı kimliğin yeniden yüklenmesi, rotasyon ve iptal sonrası durma doğrulandı. Windows servis kurulumu/reboot kabulü ayrı laboratuvar makinesinde yapılmalıdır. M4 PhishCatch; merkezi tarama/inceleme/eğitim onayı, mobil yerel kurum oturumu ve bağımsız kullanım desteğiyle hazırdır. Yerel servis bağlantısı ve QR kayıt akışı doğrulandı; model artifact ve fiziksel mobil kabulü ayrıca gerekir. Sıradaki M5, yapılandırılabilir Wazuh bağlantısıdır. Wazuh için henüz laboratuvar sunucusu yoktur; canlı kabul testi kurulumdan sonra yapılır.
+M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, fiziksel envanter, aynı kimliğin yeniden yüklenmesi, rotasyon ve iptal sonrası durma doğrulandı. Windows servis kurulumu/reboot kabulü ayrı laboratuvar makinesinde yapılmalıdır. M4 PhishCatch; merkezi tarama/inceleme/eğitim onayı, mobil yerel kurum oturumu ve bağımsız kullanım desteğiyle hazırdır. Yerel servis bağlantısı ve QR kayıt akışı doğrulandı; model dosyaları ve fiziksel mobil kabulü ayrıca gerekir. M5 ayrı Wazuh Server/Indexer bağlantıları, agent/alarm okuması ve açık cihaz eşleştirmesiyle hazırlanmıştır. Wazuh laboratuvarı henüz yoktur; canlı kabul kurulumdan sonra yapılır. Sıradaki iş [birlikte laboratuvar kabulüdür](lab-acceptance.md); M6 olay ve sınırlı yönetim işleri bu doğrulamadan sonra açılır.
 
 ## Üretim öncesi zorunlu işler
 

@@ -34,9 +34,11 @@ Rol, erişim durumu veya eğitim izni değiştiğinde ilgili kullanıcının otu
 | İşlem geçmişini görme | Evet | Evet | Hayır |
 | Kayıt daveti üretme, cihaz erişimi iptali ve anahtar rotasyonu | Evet | Hayır | Hayır |
 | Kullanıcı oluşturma ve yönetme | Evet | Hayır | Hayır |
+| Wazuh cihazları ve alarmlarını okuma | Evet | Evet | Hayır |
+| Yerel Wazuh cihaz eşleştirmesini değiştirme | Evet | Hayır | Hayır |
 | Eğitim örneğini onaylama | `training_permission` verilirse; ilk yöneticiye açık | `training_permission` verilirse | `training_permission` verilirse |
 
-`employee`, ileride PhishCatch mobil taramalarının kullanıcı kimliğidir; bu aşamada şirketin tüm cihazlarını göremez. `training_permission`, cihaz yönetimi hakkı vermez. Eğitim izninin bulunması eğitim havuzu veya model yayımlama uç noktalarının uygulanmış olduğu anlamına gelmez. Tahmin, doğrulanmış eğitim etiketi ve model yükseltme ayrı işlemler olarak kalır.
+`employee`, PhishCatch mobil ve panel taramalarını kendi kimliğiyle gönderir ve yalnızca kendi geçmişini görür; şirketin tüm cihazlarını ve Wazuh alarmlarını okuyamaz. Yönetici ve analist kurum taramalarını okuyup inceleyebilir. `training_permission`, cihaz yönetimi hakkı vermez; yalnızca doğrulanmış ve uygun özellikleri bulunan örneği ayrıca onaylama/export hakkıdır. Tahmin, doğrulanmış eğitim etiketi ve model yükseltme ayrı işlemler olarak kalır; otomatik model eğitimi/yayımlaması uygulanmamıştır.
 
 ## Oturum ve tarayıcı koruması
 

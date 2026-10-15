@@ -7,6 +7,7 @@ from allsafe_api.config import Settings
 from allsafe_api.database import build_engine, prepare_database_directory
 from allsafe_api.models import Base
 from allsafe_api.phishcatch import models as phishcatch_models  # noqa: F401
+from allsafe_api.wazuh import models as wazuh_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
