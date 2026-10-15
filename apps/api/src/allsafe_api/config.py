@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     wazuh_indexer_ca_file: str | None = None
     wazuh_timeout_seconds: int = Field(default=5, ge=1, le=30)
     wazuh_allow_loopback_http: bool = False
+    managed_access_config_file: str | None = None
     wazuh_alert_index: str = Field(
         default="wazuh-alerts-*", pattern=r"^wazuh-alerts-[a-zA-Z0-9.*_-]+$"
     )

@@ -16,6 +16,11 @@ export function readCookie(name: string): string | undefined {
 }
 
 const errorMessages: Record<string, string> = {
+  'Managed access configuration unavailable': 'Yönetici erişimi yapılandırması kullanılamıyor. Sunucudaki bağlantı ve anahtar dosyalarını kontrol edin.',
+  'SSH access is not configured for this device': 'Bu cihaz için SSH terminal erişimi yapılandırılmadı.',
+  'RDP access is not configured for this device': 'Bu cihaz için RDP bağlantısı yapılandırılmadı.',
+  'Device already has a terminal session': 'Bu cihazda açık bir terminal oturumu var. Önce mevcut oturumu kapatın.',
+  'An enrolled Windows device is required': 'Erişimi iptal edilmemiş, kayıtlı bir Windows cihazı gerekir.',
   'User already exists': 'Bu e-posta adresi zaten kayıtlı.',
   'The last active admin must be retained': 'Son etkin yöneticinin rolü kaldırılamaz veya hesabı kapatılamaz.',
   'Too many login attempts; try later': 'Çok fazla giriş denemesi yapıldı. Beş dakika sonra yeniden deneyin.',
@@ -32,9 +37,9 @@ const errorMessages: Record<string, string> = {
   'Passwords are managed by the identity provider': 'Parolalar kurumsal kimlik sağlayıcısı tarafından yönetiliyor.',
 };
 
-export async function apiRequest<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+async function apiResponse(path: string, options: { method?: string; body?: unknown } = {}, accept = 'application/json'): Promise<Response> {
   const method = (options.method ?? 'GET').toUpperCase();
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: accept };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const csrf = readCookie('allsafe_csrf');
@@ -63,6 +68,34 @@ export async function apiRequest<T>(path: string, options: { method?: string; bo
     }
     throw new ApiError(response.status, message);
   }
+  return response;
+}
+
+export async function apiRequest<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+  const response = await apiResponse(path, options);
   if (response.status === 204) return undefined as T;
   return await response.json() as T;
+}
+
+export async function apiRdpProfile(path: string, reason: string): Promise<Blob> {
+  const response = await apiResponse(path, { method: 'POST', body: { reason } }, 'application/x-rdp');
+  const type = response.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase();
+  if (type !== 'application/x-rdp' || Number(response.headers.get('Content-Length') ?? 0) > 16384) {
+    throw new ApiError(0, 'Masaüstü bağlantı dosyası doğrulanamadı.');
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new ApiError(0, 'Masaüstü bağlantı dosyası alınamadı.');
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      total += part.value.length;
+      if (total > 16384) { await reader.cancel(); throw new ApiError(0, 'Masaüstü bağlantı dosyası boyutu geçersiz.'); }
+      chunks.push(new Uint8Array(part.value));
+    }
+  } finally { reader.releaseLock(); }
+  if (!total) throw new ApiError(0, 'Masaüstü bağlantı dosyası boş.');
+  return new Blob(chunks, { type: 'application/x-rdp' });
 }

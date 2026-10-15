@@ -18,6 +18,9 @@ from allsafe_api.database import (
 )
 from allsafe_api.identity import initialize_identity
 from allsafe_api.identity import router as identity_router
+from allsafe_api.managed_access.routes import router as managed_access_router
+from allsafe_api.managed_access.service import close_stale_sessions as close_stale_terminals
+from allsafe_api.managed_access.transport import TerminalRelay
 from allsafe_api.models import Base
 from allsafe_api.phishcatch.routes import router as phishcatch_router
 from allsafe_api.remote_desktop.relay import DesktopRelay
@@ -44,9 +47,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 Base.metadata.create_all(engine)
             initialize_identity(application)
             close_stale_sessions(application)
+            close_stale_terminals(application)
             yield
         finally:
             await application.state.desktop_relay.shutdown()
+            await application.state.terminal_relay.shutdown()
             engine.dispose()
 
     application = FastAPI(
@@ -62,6 +67,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.engine = engine
     application.state.session_factory = make_session_factory(engine)
     application.state.desktop_relay = DesktopRelay(application.state.session_factory)
+    application.state.terminal_relay = TerminalRelay(
+        application.state.session_factory, configured.managed_access_config_file
+    )
     if configured.authentication_mode == "oidc":
         application.add_middleware(
             SessionMiddleware,
@@ -96,6 +104,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(phishcatch_router)
     application.include_router(wazuh_router)
     application.include_router(desktop_router)
+    application.include_router(managed_access_router)
     return application
 
 

@@ -26,11 +26,11 @@ public static class Program
             var api = new AgentApiClient(http);
             if (options.Command == "desktop")
             {
-                RemoteDesktop.NativeDesktopSurface.RequireInteractiveUser(options.DevelopmentDirectory is not null);
+                RemoteDesktop.NativeDesktopSurface.RequireInteractiveUser(options.DevelopmentDirectory is not null, options.Unattended);
                 var identity = await store.LoadAsync() ?? throw new ArgumentException("No device identity exists. Enroll first.");
                 _ = AgentServerUri.Parse(identity.ServerUri.ToString(), options.AllowLoopbackHttp);
                 await using var desktop = await store.AcquireDesktopLeaseAsync();
-                return await RemoteDesktop.DesktopApplication.RunAsync(identity, http);
+                return await RemoteDesktop.DesktopApplication.RunAsync(identity, http, options.Unattended);
             }
             if (options.Command == "status")
             {
@@ -157,23 +157,29 @@ public static class Program
         ALLSAFE Windows Agent
         enroll --server https://allsafe.example [--token-stdin]
         run | once | status | replace-credential [--token-stdin]
-        desktop (explicit interactive launch; every session requires local consent)
+        desktop [--unattended] (explicit visible interactive launch; unattended mode requires local administrator)
+        Default desktop mode asks for local consent. --unattended authorizes valid panel requests without a local prompt.
         Laboratory only: --allow-loopback-http --dev-state-dir <directory>
         Tokens are accepted through a hidden prompt or explicit stdin, never command arguments.
         Default identity directory: %ProgramData%\ALLSAFE\Agent
         """);
 }
 
-internal sealed record CommandOptions(string Command, string? Server, string? DevelopmentDirectory, bool AllowLoopbackHttp, bool TokenFromStdin)
+internal sealed record CommandOptions(string Command, string? Server, string? DevelopmentDirectory, bool AllowLoopbackHttp, bool TokenFromStdin, bool Unattended = false)
 {
     public string RequiredServer() => Server ?? throw new ArgumentException("Enrollment requires --server.");
     public static CommandOptions Parse(string[] args)
     {
-        if (args.Length == 0 || args[0] is "help" or "--help") return new("help", null, null, false, false);
+        if (args.Length == 0) return new("help", null, null, false, false);
+        if (args[0] is "help" or "--help")
+        {
+            if (args.Length != 1) throw new ArgumentException("Help does not accept options.");
+            return new("help", null, null, false, false);
+        }
         if (args[0] is not ("enroll" or "run" or "once" or "status" or "replace-credential" or "desktop"))
             throw new ArgumentException("Unknown command. Use help.");
         string? server = null, directory = null;
-        bool loopback = false, stdin = false;
+        bool loopback = false, stdin = false, unattended = false;
         var seen = new HashSet<string>();
         for (var i = 1; i < args.Length; i++)
         {
@@ -190,11 +196,13 @@ internal sealed record CommandOptions(string Command, string? Server, string? De
                     break;
                 case "--allow-loopback-http": loopback = true; break;
                 case "--token-stdin": stdin = true; break;
+                case "--unattended": unattended = true; break;
                 default: throw new ArgumentException("Unknown option. Secrets must not be supplied as arguments.");
             }
         }
         if (server is not null && args[0] is not ("enroll" or "status")) throw new ArgumentException("Server address is stored during enrollment.");
         if (stdin && args[0] is not ("enroll" or "replace-credential")) throw new ArgumentException("This command does not accept a token.");
-        return new(args[0], server, directory, loopback, stdin);
+        if (unattended && args[0] != "desktop") throw new ArgumentException("Unattended access is available only for the desktop command.");
+        return new(args[0], server, directory, loopback, stdin, unattended);
     }
 }

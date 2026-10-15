@@ -17,13 +17,12 @@ public sealed class NativeDesktopSurface : IDesktopSurface
     private readonly HashSet<string> _pressedButtons = new(StringComparer.Ordinal);
     private bool _sharingEnabled;
 
-    public static void RequireInteractiveUser(bool development)
+    public static void RequireInteractiveUser(bool development, bool unattended = false)
     {
         if (!OperatingSystem.IsWindows() || WindowsServiceHelpers.IsWindowsService() ||
             !Environment.UserInteractive || Process.GetCurrentProcess().SessionId == 0)
             throw new ArgumentException("Remote desktop requires an explicitly launched interactive Windows session; it cannot run as a service.");
-        if (!development && !IsElevated)
-            throw new ArgumentException("Launch remote desktop explicitly as a local administrator to read the protected device identity. Device permissions must not be weakened.");
+        DesktopAccessPolicy.RequireAdministrator(development, unattended, IsElevated);
         if (!DesktopAvailable()) throw new ArgumentException("An active, unlocked Default desktop is required.");
     }
 

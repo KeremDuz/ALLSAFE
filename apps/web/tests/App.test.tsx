@@ -87,6 +87,22 @@ describe('role-aware panel access', () => {
     expect(fetchMock.mock.calls.some(([path]) => String(path).startsWith('/api/v1/users'))).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: `${device.hostname} detayını aç` }));
     expect(screen.queryByRole('button', { name: 'Uzaktan masaüstü' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Yönetici erişimi' })).toBeNull();
+  });
+
+  it('opens managed access only with the dedicated administrator permission', async () => {
+    const admin: User = { ...analyst, role: 'admin', permissions: [...analyst.permissions, 'remote-access:manage'] };
+    const normal = authenticatedFetch(admin);
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      if (String(input).startsWith('/api/v1/managed-access/devices/')) return jsonResponse({ device_id: device.device_id, terminal: { configured: false, account: null }, rdp: { configured: false, account: null }, error_code: null });
+      return normal(input, options);
+    }));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cihazlar' }));
+    fireEvent.click(await screen.findByRole('button', { name: `${device.hostname} detayını aç` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yönetici erişimi' }));
+    expect(await screen.findByRole('button', { name: 'Terminali aç' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'RDP bağlantısını indir' })).toBeDisabled();
   });
 
   it('opens a local-consent desktop request only for the desktop permission', async () => {

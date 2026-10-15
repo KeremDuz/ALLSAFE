@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, apiRequest } from '../src/api';
+import { ApiError, apiRdpProfile, apiRequest } from '../src/api';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -16,6 +16,22 @@ function clearCookies(): void {
 }
 
 describe('browser API authentication boundary', () => {
+  it('downloads an RDP profile with the same session CSRF boundary', async () => {
+    document.cookie = 'allsafe_csrf=rdp-test-csrf; Path=/';
+    const fetchMock = vi.fn().mockResolvedValue(new Response('full address:s:lab.example\r\n', { headers: { 'Content-Type': 'application/x-rdp' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const blob = await apiRdpProfile('/api/v1/managed-access/devices/test/rdp-profile', 'Laboratuvar testi');
+    expect(blob.type).toBe('application/x-rdp');
+    expect(new Headers(fetchMock.mock.calls[0][1].headers).get('X-CSRF-Token')).toBe('rdp-test-csrf');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ reason: 'Laboratuvar testi' });
+  });
+
+  it('rejects an unbounded or incorrectly typed RDP download', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('x'.repeat(17000), { headers: { 'Content-Type': 'application/x-rdp' } })));
+    await expect(apiRdpProfile('/rdp', 'Laboratuvar testi')).rejects.toBeInstanceOf(ApiError);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>error</html>', { headers: { 'Content-Type': 'text/html' } })));
+    await expect(apiRdpProfile('/rdp', 'Laboratuvar testi')).rejects.toBeInstanceOf(ApiError);
+  });
   beforeEach(() => {
     clearCookies();
     localStorage.clear();

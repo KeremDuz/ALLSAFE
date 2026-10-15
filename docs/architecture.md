@@ -20,6 +20,7 @@ flowchart TB
 | --- | --- |
 | Core API | Cihaz kimliği, kayıt, oturum/yetki, olaylar ve bağlantıların ortak veri modeli |
 | ALLSAFE Agent | Windows cihaz envanteri, bağlantı bildirimi ve ileride izin verilen yönetim işleri |
+| Yönetici erişimi | Sabit cihaz/Windows hesabı eşlemesi üzerinden standart OpenSSH terminali; yerel RDP istemcisine profil aktarımı |
 | Wazuh bağlantısı | Güvenlik olayları, agent durumu ve güvenlik bulguları |
 | PhishCatch | URL/QR analizi, mobil sonuç, tarama geçmişi ve doğrulanmış eğitim verisi |
 | Web paneli | Ortak cihaz, olay ve tarama ekranları; işlemlerin durumunu ve veri güncelliğini gösterme |
@@ -67,8 +68,10 @@ Model tahmini eğitim etiketi değildir. Her tarama canlı modeli otomatik günc
 
 ## Sonraki aşamaların sınırları
 
-Uzaktan yönetim işleri eklendiğinde izin verilen komut listesi, hedef cihaz yetkisi, iş kimliği, tekrar çalıştırma kontrolü ve doğrulanmış sonuç gerekir. İsteğin kabul edilmesi ile cihazdaki işlemin tamamlanması ayrı durumlar olacaktır. Patch management, DLP, firewall ve DNS firewall ilk teslimin dışında kalır.
+İleride ajana gönderilecek sınırlı yönetim işlerinde izin verilen eylemler, hedef cihaz yetkisi, iş kimliği, tekrar çalıştırma kontrolü ve doğrulanmış sonuç gerekir. İsteğin kabul edilmesi ile cihazdaki işlemin tamamlanması ayrı durumlar olacaktır. Patch management, DLP, firewall ve DNS firewall ilk teslimin dışında kalır.
 
-Uzaktan masaüstü ayrı bir sonraki prototip modülüdür. İnsan yönetici web oturumu, cihaz kimliği ve yerel kullanıcının açık onayı birlikte gerekir. Windows servisi ekran yakalamaz; görünür `desktop` uygulaması kullanıcı oturumunda çalışır. Süreli SQL oturum kaydı ile tek API sürecindeki geçici görüntü/giriş aktarımı ayrıdır; ekran ve tuşlar saklanmaz. [ADR 0007](decisions/0007-remote-desktop.md) ve [çalıştırma belgesi](remote-desktop.md).
+Uzaktan masaüstü ayrı prototip modülüdür. İnsan yönetici web oturumu ve cihaz kimliği gerekir. Görünür `desktop` uygulaması varsayılan olarak yerel onay ister; yönetici hedefte açıkça `--unattended` ile başlatırsa her talepte onay beklenmez. Windows servisi ekran yakalamaz; her iki mod mevcut aktif/kilitsiz kullanıcı masaüstünde çalışır. Süreli SQL oturum kaydı ile tek API sürecindeki geçici görüntü/giriş aktarımı ayrıdır; ekran ve tuşlar saklanmaz. [ADR 0007](decisions/0007-remote-desktop.md) ve [çalıştırma belgesi](remote-desktop.md).
+
+Gözetimsiz terminal için kendi ajanında shell yerine standart Windows OpenSSH servisine bağlanılır. Hedef, Windows hesabı, cihaz başına istemci anahtarı ve doğrulanmış sunucu anahtarı API sunucusundaki korunan dosyada tanımlıdır; tarayıcı serbest hedef seçmez. Terminal yalnız insan yönetici web oturumuna bağlı, süreli ve iptal edilebilir aktarım sağlar. RDP profili ise yerel Windows istemcisine devredilir; ALLSAFE gerçek RDP oturumunun yaşam döngüsünü yönetmez. Home, oturumu kapalıyken yeni GUI oturumu sağlayamaz. [ADR 0008](decisions/0008-managed-access.md) ve [hedef hazırlığı](managed-access.md).
 
 Güncel PhishCatch servis sınırı ve ayrı eğitim onayı [ADR 0005](decisions/0005-phishcatch-boundary.md) ve [kurulum belgesinde](phishcatch.md) açıklanır. Wazuh'un ayrı okuma bağlantıları, bilinmeyen/kısmi durumları ve Server origin'ine bağlı cihaz eşleştirmesi [ADR 0006](decisions/0006-wazuh-boundary.md) ve [bağlantı belgesinde](wazuh.md) açıklanır.

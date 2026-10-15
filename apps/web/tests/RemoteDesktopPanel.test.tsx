@@ -78,7 +78,7 @@ describe('consented desktop lifecycle', () => {
   it('creates a CSRF-protected view request and opens no socket before local consent', async () => {
     render(<RemoteDesktopPanel device={device} onClose={vi.fn()} />);
     await submit();
-    expect(screen.getByText('Yerel onay bekleniyor')).toBeInTheDocument();
+    expect(screen.getByText('Cihaz bağlantısı bekleniyor')).toBeInTheDocument();
     expect(Socket.instances).toHaveLength(0);
     expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ 'X-CSRF-Token': 'csrf-test-value' });
     const socket = await approve();
