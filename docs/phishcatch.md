@@ -1,6 +1,8 @@
 # PhishCatch ve merkezi taramalar
 
-PhishCatch ayrı bir analiz servisidir. ALLSAFE kullanıcı kimliği, tarama geçmişi, bağımsız inceleme ve eğitim onayını yönetir. Mobil uygulama bağımsız modunu korur; ALLSAFE modu seçilip kurum hesabıyla giriş yapıldığında QR/URL sonuçları bu panelde görünür. Model dosyaları bu repoya eklenmez ve henüz mevcut değildir; sonuç eksik veya belirsiz olduğunda temiz gibi sunulmaz.
+PhishCatch ayrı bir analiz servisidir. ALLSAFE kullanıcı kimliği, tarama geçmişi, bağımsız inceleme ve eğitim onayını yönetir. Mobil uygulama bağımsız modunu korur; ALLSAFE modu seçilip kurum hesabıyla giriş yapıldığında QR/URL sonuçları bu panelde görünür. Model dosyaları Git dışında tutulur ve her kurulumda ayrıca sağlanır; sonuç eksik veya belirsiz olduğunda temiz gibi sunulmaz.
+
+16 Ekim 2026 tarihli yerel laboratuvarda URL için 300 ağaçlı Random Forest pipeline'ı ve HTML için HistGradientBoosting modeli yüklenmiş, örnek çevrimdışı tahminler doğrulanmıştır. Bu dosyalar repoyla dağıtılmaz. Eski ortamdan taşınan modellerin orijinalleri korunmuş, ayrı çalışma kopyalarının özellik şeması ve örnek tahminleri kontrol edilmiştir; kapsamlı doğruluk, platform/sürüm eşdeğerliği ve fiziksel telefon kabulü ayrıca gerekir. [Sunum ve mevcut yetenekler](project-overview.md).
 
 ## Yerel kurulum
 
