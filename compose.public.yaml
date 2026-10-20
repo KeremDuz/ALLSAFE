@@ -6,7 +6,7 @@ services:
 
   phishcatch:
     environment:
-      CORS_ALLOWED_ORIGINS: ${ALLSAFE_HOME_ORIGIN},${PHISHCATCH_PUBLIC_ORIGIN:?Set the separate verified public HTTPS origin}
+      CORS_ALLOWED_ORIGINS: ${ALLSAFE_HOME_ORIGIN},${PHISHCATCH_PUBLIC_ORIGIN:?Set the separate verified public HTTPS origin},https://keremduz.github.io
 
   public_edge:
     image: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}-public-edge:${ALLSAFE_HOME_RELEASE:-local}
