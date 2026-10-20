@@ -181,7 +181,7 @@ class PublicNginxBoundaryTests(unittest.TestCase):
     def test_only_exact_anonymous_analysis_can_reach_a_backend(self) -> None:
         proxies = re.findall(r"\bproxy_pass\s+([^;]+);", self.source)
         self.assertEqual(proxies, ["http://127.0.0.1:9000/api/v1/public/analyze"])
-        self.assertIn("limit_except POST { deny all; }", self.analysis)
+        self.assertIn("limit_except POST OPTIONS { deny all; }", self.analysis)
         self.assertRegex(nginx_block(self.source, "location /"), r"^\s*return 404;\s*$")
         for prohibited in (
             "/api/auth",
@@ -215,10 +215,11 @@ class PublicNginxBoundaryTests(unittest.TestCase):
     ) -> None:
         self.assertRegex(
             self.source,
-            r"limit_req_zone\s+\$server_name\s+zone=consumer_rate:1m\s+rate=6r/m;",
+            r"limit_req_zone\s+\$consumer_analysis_key\s+zone=consumer_rate:1m\s+rate=6r/m;",
         )
         self.assertRegex(
-            self.source, r"limit_conn_zone\s+\$server_name\s+zone=consumer_active:1m;"
+            self.source,
+            r"limit_conn_zone\s+\$consumer_analysis_key\s+zone=consumer_active:1m;",
         )
         for directive in (
             "limit_req zone=consumer_rate burst=2 nodelay;",
@@ -234,6 +235,91 @@ class PublicNginxBoundaryTests(unittest.TestCase):
         self.assertLessEqual(int(body_limit.group(1)), 16)
         self.assertIn("client_body_timeout 10s;", self.source)
 
+    def test_preflight_does_not_consume_analysis_capacity_or_allow_other_methods(
+        self,
+    ) -> None:
+        method_map = nginx_block(
+            self.source, "map $request_method $consumer_analysis_key"
+        )
+        entries = dict(re.findall(r'(\S+)\s+(""|\$\w+)\s*;', method_map))
+        self.assertEqual(entries, {"default": '""', "POST": "$server_name"})
+        for method in ("OPTIONS", "GET", "HEAD", "PUT", "DELETE", "PATCH"):
+            with self.subTest(method=method):
+                self.assertEqual(entries.get(method, entries["default"]), '""')
+        self.assertIn("server_name _;", self.source)
+        allowed = re.search(
+            r"limit_except\s+([^{}]+)\{\s*deny all;\s*\}", self.analysis
+        )
+        self.assertIsNotNone(allowed)
+        self.assertEqual(set(allowed.group(1).split()), {"POST", "OPTIONS"})
+
+    def test_cors_accepts_only_exact_pages_origin_without_credentials_or_reflection(
+        self,
+    ) -> None:
+        origin_map = nginx_block(self.source, "map $http_origin $consumer_cors_origin")
+        origins = dict(re.findall(r'"([^"\n]+)"\s+"([^"\n]+)"\s*;', origin_map))
+        self.assertEqual(
+            origins, {"https://keremduz.github.io": "https://keremduz.github.io"}
+        )
+        self.assertRegex(origin_map, r'default\s+""\s*;')
+        for origin in (
+            "null",
+            "http://keremduz.github.io",
+            "https://evil.example",
+            "https://keremduz.github.io.evil.example",
+            "https://keremduz.github.io/PhishCatch",
+            "https://user@keremduz.github.io",
+        ):
+            with self.subTest(origin=origin):
+                self.assertNotIn(origin, origins)
+        self.assertEqual(
+            re.findall(
+                r"add_header\s+Access-Control-Allow-Origin\s+([^;]+);", self.source
+            ),
+            ["$consumer_cors_origin always"],
+        )
+        self.assertNotRegex(
+            self.source, r"add_header\s+Access-Control-Allow-Credentials\b"
+        )
+        for header in (
+            "Access-Control-Allow-Origin",
+            "Access-Control-Allow-Credentials",
+            "Vary",
+        ):
+            self.assertIn(f"proxy_hide_header {header};", self.analysis)
+        self.assertIn("add_header Vary Origin always;", self.analysis)
+        self.assertIn(
+            "add_header Access-Control-Expose-Headers Retry-After always;",
+            self.analysis,
+        )
+
+    def test_api_local_headers_preserve_inherited_security_and_error_policies(
+        self,
+    ) -> None:
+        server_prefix = nginx_block(self.source, "server").split("location =", 1)[0]
+        inherited_headers = re.findall(r"add_header\s+([^;]+);", server_prefix)
+        self.assertGreaterEqual(len(inherited_headers), 4)
+        for header in inherited_headers:
+            with self.subTest(header=header):
+                self.assertTrue(header.endswith(" always"))
+                self.assertIn(f"add_header {header};", self.analysis)
+
+    def test_analyzer_origin_allowlist_adds_pages_without_opening_all_origins(
+        self,
+    ) -> None:
+        compose = (ROOT / "compose.public.yaml").read_text(encoding="utf-8")
+        allowed = re.search(r"(?m)^\s+CORS_ALLOWED_ORIGINS:\s+([^\n]+)$", compose)
+        self.assertIsNotNone(allowed)
+        self.assertEqual(
+            allowed.group(1).split(","),
+            [
+                "${ALLSAFE_HOME_ORIGIN}",
+                "${PHISHCATCH_PUBLIC_ORIGIN:?Set the separate verified public HTTPS origin}",
+                "https://keremduz.github.io",
+            ],
+        )
+        self.assertNotIn("*", allowed.group(1))
+
     def test_download_and_static_routes_are_allowlisted_without_directory_index(
         self,
     ) -> None:
@@ -247,6 +333,48 @@ class PublicNginxBoundaryTests(unittest.TestCase):
         self.assertIn("location = / { try_files /index.html =404; }", self.source)
         self.assertIn("(?:assets|canvaskit|icons)", self.source)
         self.assertNotIn("try_files $uri /index.html", self.source)
+
+    def test_compression_is_limited_to_public_static_bundles(self) -> None:
+        static_locations = (
+            r"location ~ ^/(?:assets|canvaskit|icons)/[A-Za-z0-9_./@-]+$",
+            r"location ~ ^/(?:index\.html|main\.dart\.js|flutter\.js|flutter_bootstrap\.js|flutter_service_worker\.js|manifest\.json|version\.json|favicon\.png|brand\.svg)$",
+        )
+        self.assertEqual(len(re.findall(r"\bgzip\s+on;", self.source)), 2)
+        for location in static_locations:
+            with self.subTest(location=location):
+                block = nginx_block(self.source, location)
+                for directive in (
+                    "gzip on;",
+                    "gzip_vary on;",
+                    "gzip_proxied any;",
+                    "gzip_min_length 1024;",
+                    "gzip_comp_level 5;",
+                ):
+                    self.assertIn(directive, block)
+                types = re.search(r"\bgzip_types\s+([^;]+);", block)
+                self.assertIsNotNone(types)
+                self.assertEqual(
+                    set(types.group(1).split()),
+                    {
+                        "application/javascript",
+                        "application/json",
+                        "application/wasm",
+                        "text/css",
+                        "image/svg+xml",
+                    },
+                )
+
+    def test_analysis_and_apk_do_not_enable_compression_or_immutable_caching(
+        self,
+    ) -> None:
+        self.assertRegex(self.source, r"(?m)^\s*gzip off;\s*$")
+        download = nginx_block(
+            self.source, "location = /downloads/PhishCatch-1.1.1.apk"
+        )
+        for block in (self.analysis, download):
+            self.assertNotRegex(block, r"\bgzip\s+on;")
+        self.assertNotIn("immutable", self.source)
+        self.assertIn("add_header Cache-Control no-store always;", download)
 
 
 if __name__ == "__main__":

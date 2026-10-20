@@ -41,6 +41,14 @@ sudo python3 scripts/home_server.py public-enable
 
 Bu komut yalnız 8443 → `http://127.0.0.1:18181` eşlemesini yayımlar. Mevcut özel 443 eşlemesi korunur; çakışan veya başka bir Funnel varsa durur, reset uygulamaz. Tailscale hesap onayı istenirse sahibi tamamlar. Bu adım ve dış ağ kabulü tamamlanmadan açık adres çalışıyor sayılmaz.
 
+## Web ve APK dağıtımı
+
+Kamu girişinde gzip yalnız Flutter'ın izin verilen statik dosyalarında kullanılır. Tarayıcı destekliyorsa JavaScript, JSON, CSS, SVG ve WebAssembly yanıtları sıkıştırılır; `Vary: Accept-Encoding` gönderilir. Analiz yanıtları ve APK sıkıştırılmaz. Sürüm adı taşımayan dosyalara `immutable` önbellekleme verilmez; mevcut `no-store` davranışı eski sunucu adresi veya başlangıç dosyasının kalmasını önler.
+
+Funnel, değiştirilemeyen bant genişliği sınırlarına sahiptir; erişimin açık olması büyük dosyaların hızlı indirileceği garantisi değildir. Yeni yayında dış ağdan web dosyalarının tamamı indirilip içerik özeti doğrulanmalıdır. Büyük APK için incelenen `develop` değişiklikleri sürüm PR'ı ile `main` dalına alındıktan sonra, kaynakla eşleşen etiketteki GitHub Release'e yalnız imzalı APK ve SHA-256 kaydı eklenebilir. Modeller, imza anahtarı ve yerel yapılandırma sürüm dosyası değildir. GitHub Release dosyaları Git geçmişine eklenmez; indirme bağlantısı yayımlanmadan önce yüklenen dosyanın özeti karşılaştırılır.
+
+Başvuru: [Nginx gzip](https://nginx.org/en/docs/http/ngx_http_gzip_module.html), [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
+
 ## Analiz ve kapasite sınırları
 
 8 GB RAM için anonim analiz aynı anda bir sorguyla sınırlıdır. Kamu girişinde bütün kullanıcılar için toplam 6 istek/dakika ve küçük bir anlık artış payı vardır; yoğunlukta 429 döner. İstemcinin gönderdiği IP başlıklarına güvenilmez. Bu sınır kişi başına kota veya dağıtık saldırı koruması değildir.
