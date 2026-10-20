@@ -157,6 +157,8 @@ Telefon ve web istemcisini özel Tailscale HTTPS üzerinden ev sunucusunda çal�
 
 [PhishCatch](https://github.com/KeremDuz/PhishCatch), `packages/phishcatch` altında sürümü sabitlenmiş bir Git submodule olarak korunur. Upstream değişiklikleri önce PhishCatch reposunda ayrı PR ile incelenir; ardından burada yalnızca sabitlenmiş sürüm güncellenir.
 
+Güncel tespit kararları, yerel uyarı listesi ve model değerlendirme koşulları [ADR 0011](docs/decisions/0011-phishcatch-detection-policy.md) ve [tespit belgesinde](packages/phishcatch/apps/backend/DETECTION.md) açıklanır. Eksik tarama temiz sayılmaz; mevcut modellerin güncel doğruluğu için bağımsız doğrulanmış veri gerekir.
+
 ```sh
 git clone --recurse-submodules https://github.com/KeremDuz/ALLSAFE.git
 ```
