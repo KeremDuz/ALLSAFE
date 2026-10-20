@@ -1,0 +1,45 @@
+# Optional consumer ingress. ALLSAFE remains on its separate private HTTPS listener.
+services:
+  api:
+    ports:
+      - "127.0.0.1:18181:18181"
+
+  phishcatch:
+    environment:
+      CORS_ALLOWED_ORIGINS: ${ALLSAFE_HOME_ORIGIN},${PHISHCATCH_PUBLIC_ORIGIN:?Set the separate verified public HTTPS origin}
+
+  public_edge:
+    image: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}-public-edge:${ALLSAFE_HOME_RELEASE:-local}
+    build:
+      context: .
+      dockerfile: deploy/public/edge.Dockerfile
+    # Shares the analyzer's loopback without publishing its raw or management APIs.
+    network_mode: service:api
+    depends_on:
+      api:
+        condition: service_healthy
+        restart: true
+      phishcatch:
+        condition: service_healthy
+    volumes:
+      - type: bind
+        source: ${PHISHCATCH_PUBLIC_DOWNLOAD_DIR:?Set the separate consumer APK directory}
+        target: /usr/share/nginx/downloads
+        read_only: true
+        bind:
+          create_host_path: false
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=1777
+      - /var/run:size=1m,mode=1777
+    mem_limit: 128m
+    cpus: "0.5"
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1:18181/]
+      interval: 30s
+      timeout: 8s
+      retries: 3

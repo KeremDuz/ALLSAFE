@@ -1,5 +1,7 @@
 # Özel ev sunucusunda ALLSAFE ve PhishCatch
 
+Bu sayfa varsayılan özel profili anlatır. Kullanıcının ayrıca istediği girişsiz açık PhishCatch, [ayrı tüketici yayın profili](phishcatch-public.md) ile HTTPS 8443 üzerinde hazırlanır; ALLSAFE yönetiminin 443 dinleyicisi özel kalır.
+
 Bu profil tek kurumlu bitirme projesi laboratuvarıdır. Üretim kurulumuna ilişkin bir yeterlilik iddiası taşımaz. CasaOS, SSH, Tailscale, diskler ve mevcut konteynerler korunur. Posta geçidi, Wazuh kurulumu ve IoT araştırması bu dağıtımın kapsamı dışındadır.
 
 ## Mimari ve veri sınırları

@@ -8,6 +8,9 @@ build
 !build/home-client
 !build/home-client/web
 !build/home-client/web/**
+!build/public-client
+!build/public-client/web
+!build/public-client/web/**
 .venv
 **/.venv
 **/__pycache__
