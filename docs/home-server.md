@@ -29,6 +29,7 @@ Kalıcı alanlar:
 | Modeller | Ana makinede seçilen dizin → `/app/models` salt okunur | `phishcatch_url_model.pkl`, `phishcatch_html_model.pkl` |
 | Sunucu sırları | `.local/home-server/home.env`, `.local/home-server/phishcatch.env` | Sunucuya özel parola ve anahtarlar; Linux izinleri 600 |
 | Yedekler | `.local/home-server/backups/<UTC-zaman>/` | Tutarlı SQLite kopyaları; Git dışında ve hassas |
+| Telefon indirmesi | `.local/home-server/downloads/` → `/usr/share/nginx/downloads` salt okunur | Yalnız açıkça hazırlanmış APK ve SHA-256 dosyası; sır/model/DB içermez |
 
 Compose proje adı değiştirilirse volume adları da değişir; mevcut verileri kaybolmuş sanıp yeni bir kurulum başlatmayın. `.env`, model, veritabanı ve yedekler Git'e veya Docker imajına alınmaz. Derleme bağlamları da bu dosyaları dışlar.
 
@@ -126,6 +127,12 @@ Geri dönüşte önce `stop` kullanılır. Eski incelemeden geçmiş commit, sub
 Serve'ü geri almak gerekirse yalnız bu çalışmaya ait doğrulanmış köken/port eşlemesi kapatılır; tüm Serve yapılandırması sıfırlanmaz. Başka hizmetlerin bulunduğu portta otomatik geri alma yapılmaz. [Tailscale komut başvurusu](https://tailscale.com/docs/reference/tailscale-cli/serve).
 
 ## Kabul adımları ve gerçek telefon
+
+APK'nin telefondan indirileceği özel adres, doğrulanan aynı HTTPS kökenine `/downloads/PhishCatch-ALLSAFE-1.1.0.apk` eklenerek elde edilir. Telefonda önce Tailscale açık olmalıdır. Bu yol yalnız belirtilen APK'yi statik dosya olarak sunar; dosya yoksa **404** döner, Flutter'ın `index.html` dosyasına düşmez. İndirme dizininde listeleme kapalıdır, symlink izlenmez, Android paket MIME türü ve `attachment`/`nosniff` başlıkları kullanılır. Dizin edge'e salt okunur bağlanır; APK veya imzalama anahtarı Docker imajına alınmaz. Bu URL herkesin erişebildiği internet yayını değildir; uygulama hesabından bağımsız olarak erişimi tailnet kuralları belirler.
+
+`init` kendine ait indirme dizinini 755 izinle oluşturur. Daha önce hazırlanmış `home.env` içinde `ALLSAFE_HOME_DOWNLOAD_DIR` yoksa `start`, mevcut sırları veya ortam dosyasını değiştirmeden `.local/home-server/downloads/` varsayılanını hazırlar. Özel dizin seçildiyse önceden mevcut olmalıdır; yardımcı araç keyfi bir dizin oluşturmaz. Ön kontrolde APK/SHA-256 dışındaki dosyalar ve symlink'ler reddedilir. `.env`, pickle model, veritabanı, keystore veya özel anahtarı buraya koymayın. Sunulacak dosya adı `PhishCatch-ALLSAFE-1.1.0.apk`, dosya okuma izni en az Nginx kullanıcısının okuyabileceği biçimde olmalıdır; bu özel genel artifact için 644 kullanılabilir.
+
+İndirmeden önce ve sonra APK'nin SHA-256 özeti karşılaştırılır. **Windows PowerShell'de** `Get-FileHash -Algorithm SHA256 <APK-dosyasi>`, **Ubuntu SSH terminalinde** `sha256sum <APK-dosyasi>` kullanılabilir. Hash yalnız aktarılan dosyanın aynılığını gösterir; yayıncının kimliğini doğrulamaz. APK imzası Android SDK'nin `apksigner verify --print-certs <APK-dosyasi>` aracıyla ayrıca kontrol edilir. Teslim kaydı APK'nin debug/release durumunu, sürümünü, paket kimliğini ve sertifika parmak izini belirtmelidir. Debug imzalı test APK'sı kurulu release uygulamasının üzerine güncellenemeyebilir; mevcut yayın imzası sessizce değiştirilmez. Keystore ve parolası indirme dizininde bulunmaz.
 
 1. Telefona Tailscale kurun, sunucuyla aynı tailnet hesabında oturum açın ve VPN'i etkinleştirin. Sunucu çevrimdışıysa uygulama başka servise sessiz geçmemelidir. Tailnet erişimi uygulama hesabının yerine geçmez; ALLSAFE'e ayrıca giriş yapılır.
 2. Doğrulanmış özel HTTPS kökenini telefon tarayıcısında açın. `/admin/` yönetim panelini açın. Bir kurum hesabıyla giriş yapın; normal kullanıcının yönetici kaynaklarına erişemediğini doğrulayın.

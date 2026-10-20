@@ -17,6 +17,40 @@ SPEC.loader.exec_module(HOME)
 
 
 class HomeServerTests(unittest.TestCase):
+    def test_old_config_gets_only_the_default_public_download_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env_file = root / ".local/home-server/home.env"
+            with patch.object(HOME, "ROOT", root):
+                target = HOME.prepare_downloads(env_file, {})
+            self.assertEqual(target, root / ".local/home-server/downloads")
+            self.assertTrue(target.is_dir())
+            self.assertEqual(list(target.iterdir()), [])
+            self.assertFalse(env_file.exists())
+            if os.name != "nt":
+                self.assertEqual(HOME.stat.S_IMODE(target.stat().st_mode), 0o755)
+
+    def test_public_download_preflight_rejects_secrets_and_missing_custom_directories(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env_file = root / ".local/home-server/home.env"
+            with patch.object(HOME, "ROOT", root):
+                custom = root / "do-not-create/private"
+                with self.assertRaises(ValueError):
+                    HOME.prepare_downloads(
+                        env_file, {"ALLSAFE_HOME_DOWNLOAD_DIR": str(custom)}
+                    )
+                self.assertFalse(custom.exists())
+                target = HOME.prepare_downloads(env_file, {})
+                (target / ".env").write_text("test-only-secret", encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    HOME.prepare_downloads(env_file, {})
+                (target / ".env").unlink()
+                (target / HOME.APK_NAME).write_bytes(b"test-apk-placeholder")
+                self.assertEqual(HOME.prepare_downloads(env_file, {}), target)
+
     def test_failed_serve_enable_can_be_retried_without_overwriting_snapshots(
         self,
     ) -> None:

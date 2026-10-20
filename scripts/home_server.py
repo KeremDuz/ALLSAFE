@@ -20,6 +20,39 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENV = ROOT / ".local" / "home-server" / "home.env"
 MODEL_NAMES = ("phishcatch_url_model.pkl", "phishcatch_html_model.pkl")
+APK_NAME = "PhishCatch-ALLSAFE-1.1.0.apk"
+
+
+def prepare_downloads(env_file: Path, config: dict[str, str]) -> Path:
+    """Prepare only our public artifact directory, separate from private state."""
+    default = ROOT / ".local" / "home-server" / "downloads"
+    target = Path(config.get("ALLSAFE_HOME_DOWNLOAD_DIR") or str(default))
+    if not target.is_absolute():
+        target = ROOT / target
+    if target.is_symlink():
+        raise ValueError("The public download directory must not be a symbolic link.")
+    if not target.exists():
+        allowed = {default.resolve(), (env_file.parent / "downloads").resolve()}
+        if target.resolve() not in allowed:
+            raise ValueError("Custom public artifact directory must already exist.")
+        target.mkdir(parents=True, mode=0o755)
+        target.chmod(0o755)
+    if not target.is_dir():
+        raise ValueError("Public artifact path must be a directory.")
+    for item in target.iterdir():
+        if (
+            item.is_symlink()
+            or not item.is_file()
+            or item.name
+            not in {
+                APK_NAME,
+                APK_NAME + ".sha256",
+            }
+        ):
+            raise ValueError(
+                "Public download directory may contain only the APK and its SHA-256 file."
+            )
+    return target
 
 
 def run(
@@ -125,6 +158,7 @@ def initialize(args: argparse.Namespace) -> None:
         "ALLSAFE_HOME_HTTP_PORT": str(args.port),
         "ALLSAFE_HOME_MODEL_DIR": str(model_dir),
         "ALLSAFE_HOME_PROVIDER_ENV": str(args.env_file.parent / "phishcatch.env"),
+        "ALLSAFE_HOME_DOWNLOAD_DIR": str(args.env_file.parent / "downloads"),
         "ALLSAFE_HOME_ADMIN_EMAIL": args.admin_email.lower(),
         "ALLSAFE_HOME_ADMIN_PASSWORD": password,
         "ALLSAFE_HOME_SESSION_SECRET": secrets.token_urlsafe(48),
@@ -136,6 +170,7 @@ def initialize(args: argparse.Namespace) -> None:
         raise ValueError(
             "Private configuration already exists; it will not be overwritten."
         )
+    prepare_downloads(args.env_file, values)
     descriptor = os.open(args.env_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as output:
         output.write(
@@ -431,6 +466,7 @@ def start(args: argparse.Namespace) -> None:
     model_dir = Path(config["ALLSAFE_HOME_MODEL_DIR"])
     if any(not (model_dir / name).is_file() for name in MODEL_NAMES):
         raise ValueError("Both configured model files must exist before starting.")
+    prepare_downloads(args.env_file, config)
     # Reject an occupied port unless it belongs to this existing Compose edge.
     existing = compose(args.env_file, "ps", "-q", "edge", capture=True).stdout.strip()
     if not existing:

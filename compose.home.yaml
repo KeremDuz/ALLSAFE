@@ -115,6 +115,13 @@ services:
       dockerfile: deploy/home/edge.Dockerfile
     ports:
       - "127.0.0.1:${ALLSAFE_HOME_HTTP_PORT:-18180}:80"
+    volumes:
+      - type: bind
+        source: ${ALLSAFE_HOME_DOWNLOAD_DIR:-./.local/home-server/downloads}
+        target: /usr/share/nginx/downloads
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       api:
         condition: service_healthy
