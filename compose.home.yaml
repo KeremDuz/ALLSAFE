@@ -1,0 +1,141 @@
+# Single-organization private laboratory profile. No public ingress or raw analyzer port.
+name: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}
+
+x-api: &api
+  image: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}-api:${ALLSAFE_HOME_RELEASE:-local}
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  environment: &api-environment
+    ALLSAFE_ENVIRONMENT: development
+    ALLSAFE_DATABASE_URL: sqlite:////app/data/allsafe.db
+    ALLSAFE_INITIALIZE_SCHEMA: "false"
+    ALLSAFE_AUTHENTICATION_MODE: local
+    ALLSAFE_INITIAL_ADMIN_EMAIL: ${ALLSAFE_HOME_ADMIN_EMAIL:?Initialize home deployment first}
+    ALLSAFE_INITIAL_ADMIN_PASSWORD: ${ALLSAFE_HOME_ADMIN_PASSWORD:?Initialize home deployment first}
+    ALLSAFE_FRONTEND_URL: ${ALLSAFE_HOME_ORIGIN:?Set the verified private HTTPS origin}
+    ALLSAFE_API_URL: ${ALLSAFE_HOME_ORIGIN:?Set the verified private HTTPS origin}
+    ALLSAFE_COOKIE_SECURE: "true"
+    ALLSAFE_SESSION_SIGNING_SECRET: ${ALLSAFE_HOME_SESSION_SECRET:?Initialize home deployment first}
+    ALLSAFE_PHISHCATCH_URL: http://127.0.0.1:9000
+    ALLSAFE_PHISHCATCH_ALLOW_LOOPBACK_HTTP: "true"
+    ALLSAFE_PHISHCATCH_INTEGRATION_KEY: ${ALLSAFE_HOME_INTEGRATION_KEY:?Initialize home deployment first}
+    ALLSAFE_PHISHCATCH_TIMEOUT_SECONDS: "60"
+  volumes:
+    - api-data:/app/data
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  migrate:
+    <<: *api
+    command: [alembic, upgrade, head]
+    restart: "no"
+    mem_limit: 384m
+    cpus: "1.0"
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: "1.5"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"]
+      interval: 30s
+      timeout: 8s
+      retries: 4
+      start_period: 30s
+
+  phishcatch:
+    image: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}-phishcatch:${ALLSAFE_HOME_RELEASE:-local}
+    build:
+      context: packages/phishcatch/apps/backend
+    # Keeps the existing strict integration origin policy: HTTP only on shared loopback.
+    network_mode: service:api
+    depends_on:
+      api:
+        condition: service_healthy
+        restart: true
+    command: [sh, -c, "python -c 'from app.dependencies import get_training_store; get_training_store()' && exec uvicorn app.main:app --host 127.0.0.1 --port 9000 --workers 1"]
+    env_file:
+      - ${ALLSAFE_HOME_PROVIDER_ENV:?Initialize the private provider configuration first}
+    environment:
+      PORT: "9000"
+      ALLSAFE_INTEGRATION_KEY: ${ALLSAFE_HOME_INTEGRATION_KEY:?Initialize home deployment first}
+      ML_MODEL_PATH: /app/models/phishcatch_url_model.pkl
+      HTML_MODEL_PATH: /app/models/phishcatch_html_model.pkl
+      ML_SCALER_PATH: ""
+      TRAINING_DB_PATH: /app/data/phishcatch_training.sqlite3
+      HTML_BROWSER_RENDER_ENABLED: "0"
+      HTML_BROWSER_SCREENSHOT_ENABLED: "0"
+      SCANNER_CACHE_MAX_ENTRIES: "256"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      CORS_ALLOWED_ORIGINS: ${ALLSAFE_HOME_ORIGIN}
+    volumes:
+      - phishcatch-data:/app/data
+      - type: bind
+        source: ${ALLSAFE_HOME_MODEL_DIR:?Set an existing model directory}
+        target: /app/models
+        read_only: true
+        bind:
+          create_host_path: false
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 3g
+    cpus: "2.0"
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    healthcheck:
+      test: [CMD, python, -c, "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:9000/health/layers',timeout=10)); s={x['name']:x for l in d['layers'] for x in l.get('scanners',[])}; assert s['MLModelScanner']['model_loaded'] and s['MLModelScanner']['probabilities_available'] and s['HtmlScraper']['model_loaded']"]
+      interval: 45s
+      timeout: 15s
+      retries: 4
+      start_period: 120s
+
+  edge:
+    image: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}-edge:${ALLSAFE_HOME_RELEASE:-local}
+    build:
+      context: .
+      dockerfile: deploy/home/edge.Dockerfile
+    ports:
+      - "127.0.0.1:${ALLSAFE_HOME_HTTP_PORT:-18180}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+      phishcatch:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=1777
+      - /var/run:size=1m,mode=1777
+    mem_limit: 128m
+    cpus: "0.5"
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1/health/ready]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+
+volumes:
+  api-data:
+  phishcatch-data:

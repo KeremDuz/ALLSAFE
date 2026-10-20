@@ -150,6 +150,8 @@ Görünür durum bildirimi ve durdurma düğmesi korunur. Bu mod Session 0, kili
 
 ## PhishCatch
 
+Telefon ve web istemcisini özel Tailscale HTTPS üzerinden ev sunucusunda çalıştırmak için [ev sunucusu profili](docs/home-server.md) kullanılır. Flutter web kökte, ALLSAFE yönetim paneli `/admin/` altında, iki veritabanı ayrı kalıcı volume'lerde tutulur. Bu profil de tek kurumlu laboratuvar prototipidir.
+
 [Bağlantı, kurulum ve eğitim onayı](docs/phishcatch.md). Yerel servis için `setup-phishcatch.ps1` ve `start-phishcatch.ps1` kullanılır.
 
 [PhishCatch](https://github.com/KeremDuz/PhishCatch), `packages/phishcatch` altında sürümü sabitlenmiş bir Git submodule olarak korunur. Upstream değişiklikleri önce PhishCatch reposunda ayrı PR ile incelenir; ardından burada yalnızca sabitlenmiş sürüm güncellenir.
