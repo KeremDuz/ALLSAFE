@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Operate only the named private home-lab Compose project; never reset Tailscale."""
+"""Operate the named home-lab project with separate opt-in consumer ingress."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 
@@ -113,7 +114,10 @@ def read_config(path: Path) -> dict[str, str]:
 def compose(
     env_file: Path, *arguments: str, capture: bool = False
 ) -> subprocess.CompletedProcess[str]:
-    read_config(env_file)
+    config = read_config(env_file)
+    files = ["-f", str(ROOT / "compose.home.yaml")]
+    if config.get("PHISHCATCH_PUBLIC_ENABLED") == "1":
+        files += ["-f", str(ROOT / "compose.public.yaml")]
     # An explicit env file prevents the ordinary development .env from being selected.
     return run(
         [
@@ -121,8 +125,7 @@ def compose(
             "compose",
             "--env-file",
             str(env_file),
-            "-f",
-            str(ROOT / "compose.home.yaml"),
+            *files,
             *arguments,
         ],
         capture=capture,
@@ -202,7 +205,17 @@ def inspect_serve(config: dict[str, str]) -> tuple[dict[str, object], str, int]:
     served = json.loads(
         run(["tailscale", "serve", "status", "--json"], capture=True).stdout or "{}"
     )
-    if any(served.get("AllowFunnel", {}).values()):
+    allowed_public = f"{actual_name}:8443"
+    funnels = {key for key, value in served.get("AllowFunnel", {}).items() if value}
+    expected_public = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}}
+    if funnels and not (
+        config.get("PHISHCATCH_PUBLIC_ENABLED") == "1"
+        and expected.port in (None, 443)
+        and funnels == {allowed_public}
+        and served.get("Web", {}).get(allowed_public) == expected_public
+        and served.get("TCP", {}).get("8443") == {"HTTPS": True}
+        and config.get("PHISHCATCH_PUBLIC_ORIGIN") == f"https://{allowed_public}"
+    ):
         raise ValueError(
             "Existing public Funnel detected; stop and review without changing it."
         )
@@ -286,6 +299,77 @@ def check(args: argparse.Namespace) -> None:
     )
 
 
+def enable_public(args: argparse.Namespace) -> None:
+    """Publish only the reviewed consumer listener; never the ALLSAFE listener."""
+    config = read_config(args.env_file)
+    served, name, private_port = inspect_serve(config)
+    origin = config.get("PHISHCATCH_PUBLIC_ORIGIN", "")
+    if (
+        config.get("PHISHCATCH_PUBLIC_ENABLED") != "1"
+        or private_port != 443
+        or origin != f"https://{name}:8443"
+        or not ensure_serve_available(config, served, name, private_port)
+    ):
+        raise ValueError(
+            "Prepare the separate consumer deployment before enabling public HTTPS."
+        )
+    key = f"{name}:8443"
+    expected = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}}
+    if key in served.get("Web", {}) and served["Web"][key] != expected:
+        raise ValueError("Port 8443 belongs to another service; no route was changed.")
+    if "8443" in served.get("TCP", {}) and served["TCP"]["8443"] != {"HTTPS": True}:
+        raise ValueError("Port 8443 belongs to another TCP listener.")
+    with urlopen("http://127.0.0.1:18181/", timeout=10) as response:
+        if response.status != 200 or "text/html" not in response.headers.get(
+            "Content-Type", ""
+        ):
+            raise ValueError("Consumer web is not ready.")
+    for path in (
+        "/admin/",
+        "/api/v1/auth/me",
+        "/api/v1/analyze",
+        "/api/v1/integrations/allsafe/health",
+        "/health/layers",
+        "/openapi.json",
+    ):
+        try:
+            with urlopen("http://127.0.0.1:18181" + path, timeout=5):
+                raise ValueError("Consumer ingress exposed an unapproved route.")
+        except HTTPError as error:
+            if error.code != 404:
+                raise ValueError("Consumer ingress route boundary failed.") from None
+    if served.get("AllowFunnel", {}).get(key):
+        print("Exact public consumer mapping already exists; unchanged.")
+        return
+    snapshot = args.env_file.parent / (
+        "tailscale-before-public-" + secrets.token_hex(8) + ".json"
+    )
+    with os.fdopen(
+        os.open(snapshot, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w"
+    ) as output:
+        json.dump(served, output, indent=2)
+    run(
+        [
+            "tailscale",
+            "funnel",
+            "--bg",
+            "--https=8443",
+            "--yes",
+            "http://127.0.0.1:18181",
+        ]
+    )
+    after, _, _ = inspect_serve(config)
+    if (
+        not ensure_serve_available(config, after, name, 443)
+        or after.get("Web", {}).get(key) != expected
+        or not after.get("AllowFunnel", {}).get(key)
+    ):
+        raise ValueError(
+            "Verify public mapping and preserved private mapping before use."
+        )
+    print("Public PhishCatch HTTPS enabled on 8443; ALLSAFE 443 remains private.")
+
+
 def backup(args: argparse.Namespace) -> None:
     config = read_config(args.env_file)
     metadata = json.loads(
@@ -295,7 +379,9 @@ def backup(args: argparse.Namespace) -> None:
         args.env_file, "ps", "--services", "--status", "running", capture=True
     ).stdout.splitlines()
     running = [
-        service for service in running if service in {"edge", "phishcatch", "api"}
+        service
+        for service in running
+        if service in {"edge", "public_edge", "phishcatch", "api"}
     ]
     destination = (
         args.env_file.parent
@@ -467,6 +553,43 @@ def start(args: argparse.Namespace) -> None:
     if any(not (model_dir / name).is_file() for name in MODEL_NAMES):
         raise ValueError("Both configured model files must exist before starting.")
     prepare_downloads(args.env_file, config)
+    runtime = ["edge", "phishcatch", "api"]
+    if config.get("PHISHCATCH_PUBLIC_ENABLED") == "1":
+        public_origin = validate_origin(config.get("PHISHCATCH_PUBLIC_ORIGIN", ""))
+        private = urlsplit(config["ALLSAFE_HOME_ORIGIN"])
+        public = urlsplit(public_origin)
+        if (
+            public.hostname != private.hostname
+            or public.port != 8443
+            or private.port not in (None, 443)
+        ):
+            raise ValueError(
+                "Public PhishCatch must use the separate 8443 HTTPS listener."
+            )
+        if not (ROOT / "build/public-client/web/index.html").is_file():
+            raise ValueError("Stage the consumer Flutter release first.")
+        downloads = Path(config["PHISHCATCH_PUBLIC_DOWNLOAD_DIR"])
+        if (
+            downloads.is_symlink()
+            or not downloads.is_dir()
+            or any(
+                item.is_symlink()
+                or not item.is_file()
+                or item.name
+                not in {"PhishCatch-1.1.1.apk", "PhishCatch-1.1.1.apk.sha256"}
+                for item in downloads.iterdir()
+            )
+        ):
+            raise ValueError(
+                "Consumer downloads may contain only the signed APK and hash."
+            )
+        runtime.insert(0, "public_edge")
+        public_existing = compose(
+            args.env_file, "ps", "-q", "public_edge", capture=True
+        ).stdout.strip()
+        if not public_existing:
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 18181))
     # Reject an occupied port unless it belongs to this existing Compose edge.
     existing = compose(args.env_file, "ps", "-q", "edge", capture=True).stdout.strip()
     if not existing:
@@ -476,7 +599,7 @@ def start(args: argparse.Namespace) -> None:
     # Stop only our runtime services before migrations touch the persistent DB.
     # Recreate the namespace owner, its analyzer companion and the resolving proxy
     # as one project; neither the analyzer nor Nginx may retain an old API address.
-    compose(args.env_file, "stop", "edge", "phishcatch", "api")
+    compose(args.env_file, "stop", *runtime)
     compose(
         args.env_file,
         "up",
@@ -513,6 +636,7 @@ def main() -> None:
         "backup",
         "check",
         "serve-enable",
+        "public-enable",
         "validate",
     ):
         actions.add_parser(name)
@@ -523,6 +647,8 @@ def main() -> None:
             initialize(args)
         elif args.action == "serve-enable":
             enable_serve(args)
+        elif args.action == "public-enable":
+            enable_public(args)
         elif args.action == "check":
             check(args)
         elif args.action == "backup":
