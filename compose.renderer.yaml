@@ -1,0 +1,69 @@
+# Optional original-HTML-only renderer. Include explicitly and select --profile renderer.
+# Default configuration stays disabled; this does not publish an HTTP endpoint.
+services:
+  phishcatch:
+    environment:
+      HTML_BROWSER_RENDER_ENABLED: ${PHISHCATCH_OFFLINE_RENDER_ENABLED:-0}
+      PHISHCATCH_RENDERER_SOCKET: /run/phishcatch-renderer/renderer.sock
+    group_add: ["10001"]
+    volumes:
+      - renderer-socket:/run/phishcatch-renderer:ro
+
+  renderer_init:
+    profiles: [renderer]
+    image: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}-renderer:${ALLSAFE_HOME_RELEASE:-local}
+    build:
+      context: .
+      dockerfile: deploy/renderer/Dockerfile
+    network_mode: none
+    user: "0:0"
+    command: [python, -c, "import os; p='/run/phishcatch-renderer'; os.chmod(p,0o770); os.chown(p,10001,10001)"]
+    volumes:
+      - renderer-socket:/run/phishcatch-renderer
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    restart: "no"
+    mem_limit: 64m
+    pids_limit: 8
+
+  renderer:
+    profiles: [renderer]
+    image: ${ALLSAFE_HOME_PROJECT_NAME:-allsafe-home}-renderer:${ALLSAFE_HOME_RELEASE:-local}
+    build:
+      context: .
+      dockerfile: deploy/renderer/Dockerfile
+    depends_on:
+      renderer_init:
+        condition: service_completed_successfully
+    network_mode: none
+    user: "10001:10001"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./deploy/renderer/seccomp.json
+    volumes:
+      - renderer-socket:/run/phishcatch-renderer
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    shm_size: 256m
+    cpus: "1.0"
+    mem_limit: 1536m
+    pids_limit: 256
+    # Exactly one job per container lifetime; fresh tmpfs/processes on restart.
+    restart: always
+    healthcheck:
+      test: [CMD, python, -c, "import pathlib,stat; p=pathlib.Path('/run/phishcatch-renderer/renderer.sock'); assert p.exists() and stat.S_ISSOCK(p.stat().st_mode)"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options: {max-size: 1m, max-file: "2"}
+
+volumes:
+  renderer-socket:

@@ -6,6 +6,7 @@ ALLSAFE, kurumsal güvenlik verilerini ve cihaz yönetimini tek panelde birleşt
 
 - **PhishCatch:** Mobil QR/URL analizi, merkezi tarama geçmişi ve doğrulanmış eğitim verisi.
 - **Bağımsız PhishCatch:** Hesapsız, sade mavi URL/QR istemcisi ve [ALLSAFE yönetiminden ayrılmış açık yayın profili](docs/phishcatch-public.md).
+- **PhishCatch kalite profili:** Ücretsiz, anahtarsız Cloudflare DNS bağlamı, kapsamı eksik sayfada belirsiz karar ve [bağımsız değerlendirme/işletim sınırları](docs/phishcatch-quality.md).
 - **Wazuh:** Güvenlik alarmları ve cihazla ilişkili güvenlik bulguları.
 - **ALLSAFE Agent:** Kendi geliştirdiğimiz Windows kayıt/envanter ajanı ve görünür uzaktan destek uygulaması; varsayılan yerel onay veya açıkça başlatılan gözetimsiz mod.
 - **Yönetici erişimi:** Önceden hazırlanmış Windows hesabıyla panelde OpenSSH terminali ve yerel istemci için RDP profili.
