@@ -1,5 +1,7 @@
 # Özel ev sunucusunda ALLSAFE ve PhishCatch
 
+> **Güncel işletim:** Sunucu artık `~/stacks` altında ayrı yığınlar (portainer, phishcatch, allsafe, wazuh) olarak çalışır ve `develop`'a her birleştirmede otomatik dağıtılır; bkz. [deploy/server/README.md](../deploy/server/README.md). Aşağıdaki `compose.home.yaml` / `scripts/home_server.py` akışı ilk kurulumun kaydıdır; mimari ve güvenlik sınırları geçerliliğini korur.
+
 Bu sayfa varsayılan özel profili anlatır. Kullanıcının ayrıca istediği girişsiz açık PhishCatch, [ayrı tüketici yayın profili](phishcatch-public.md) ile HTTPS 8443 üzerinde hazırlanır; ALLSAFE yönetiminin 443 dinleyicisi özel kalır.
 
 Bu profil tek kurumlu bitirme projesi laboratuvarıdır. Üretim kurulumuna ilişkin bir yeterlilik iddiası taşımaz. CasaOS, SSH, Tailscale, diskler ve mevcut konteynerler korunur. Posta geçidi, Wazuh kurulumu ve IoT araştırması bu dağıtımın kapsamı dışındadır.

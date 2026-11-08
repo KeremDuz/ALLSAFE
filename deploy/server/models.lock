@@ -1,0 +1,8 @@
+# PhishCatch model files deployed to ~/stacks/phishcatch/models.
+# Files live as assets of a private GitHub release in this repository, never in Git.
+# deploy.sh downloads a file only when its SHA-256 differs and refuses any mismatch.
+# Publish a new model: deploy/server/publish-model.sh <release-tag> <file>... then commit this file.
+#
+# file                       sha256                                                            release
+phishcatch_url_model.pkl     d4fd2ca1b241744fa69ab7d5a7c121274180dde61e9b94d0e19364983352d54c  phishcatch-models-20261020
+phishcatch_html_model.pkl    d516b018099823de3d48f92f44f751ffa85d3212f0c4dc59a63b8cce3f0f8b58  phishcatch-models-20261020
