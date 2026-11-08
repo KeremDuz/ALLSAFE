@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     initial_admin_email: str = "admin@allsafe.local"
     initial_admin_password: SecretStr | None = None
     user_session_ttl_seconds: int = Field(default=28800, ge=60, le=86400)
+    dev_auto_login: bool = Field(
+        default=False,
+        description="Loopback development only: the panel signs in as the initial administrator.",
+    )
     cookie_secure: bool = False
     frontend_url: str = "http://127.0.0.1:5173"
     api_url: str = "http://127.0.0.1:8000"
@@ -106,6 +110,18 @@ class Settings(BaseSettings):
             and len(self.initial_admin_password.get_secret_value()) < 12
         ):
             raise ValueError("Initial administrator password must contain at least 12 characters")
+        if self.dev_auto_login and (
+            self.environment != "development"
+            or self.authentication_mode != "local"
+            or any(
+                urlsplit(value).hostname not in {"127.0.0.1", "localhost", "::1"}
+                for value in (self.frontend_url, self.api_url)
+            )
+        ):
+            raise ValueError(
+                "Development auto-login requires the development environment, local "
+                "authentication and loopback panel/API URLs"
+            )
         if self.authentication_mode == "oidc":
             if not all(
                 (

@@ -73,7 +73,9 @@ export default function App() {
           throw error;
         }),
       ]);
-      setConfig(authConfig); setUser(currentUser);
+      // Loopback development only: the API refuses this unless explicitly enabled.
+      const signedIn = currentUser ?? (authConfig.dev_auto_login ? await apiRequest<User>(`${API}/auth/dev-login`, { method: 'POST' }) : null);
+      setConfig(authConfig); setUser(signedIn);
     } catch (error) { setStartError(errorText(error)); }
     finally { setStarting(false); }
   }, []);
@@ -174,8 +176,15 @@ function Login({ config, message, onLogin }: { config: AuthConfig; message: stri
     catch (problem) { setError(errorText(problem)); }
     finally { setBusy(false); }
   }
+  async function developerLogin() {
+    setError(null); setBusy(true);
+    try { onLogin(await apiRequest<User>(`${API}/auth/dev-login`, { method: 'POST' })); }
+    catch (problem) { setError(errorText(problem)); }
+    finally { setBusy(false); }
+  }
   return <div className="login-shell"><section className="login-panel"><div className="login-brand"><Brand /><span className="version-label">LAB</span></div><div className="login-form-wrap"><h1>Giriş yap</h1><p className="login-intro">Kurum hesabınızla devam edin.</p>{message && <div className="info-notice" role="status">{message}</div>}{error && <ErrorNotice message={error} />}
       {config.mode === 'local' ? <form onSubmit={(event) => void submit(event)}><div className="field"><label htmlFor="login-email">E-posta</label><input id="login-email" name="email" type="email" autoComplete="username" placeholder="adiniz@kurum.com" required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} /></div><div className="field"><label htmlFor="login-password">Parola</label><input id="login-password" name="password" type="password" autoComplete="current-password" required maxLength={1024} value={password} onChange={(event) => setPassword(event.target.value)} /></div><button className="button button-primary login-submit" disabled={busy} type="submit">{busy ? 'Giriş yapılıyor…' : 'Giriş yap'}</button></form> : <button className="button button-primary login-submit" onClick={() => { window.location.assign(`${API}/auth/oidc/login`); }}>Kurumsal hesapla giriş yap</button>}
+      {config.dev_auto_login && <button className="button button-secondary login-submit" disabled={busy} onClick={() => void developerLogin()}>Geliştirici olarak devam et</button>}
       <p className="login-help">{config.mode === 'local' ? 'Hesap desteği için kurum yöneticinize başvurun.' : 'Kurumunuzun kimlik sağlayıcısına yönlendirileceksiniz.'}</p></div></section>
   </div>;
 }

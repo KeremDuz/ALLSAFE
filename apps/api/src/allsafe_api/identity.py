@@ -143,8 +143,39 @@ def session_cookies(response: Response, request: Request, token: str, csrf: str)
 
 @router.get("/auth/config")
 def auth_configuration(request: Request) -> dict[str, str | bool]:
-    mode = request.app.state.settings.authentication_mode
-    return {"mode": mode, "oidc_enabled": mode == "oidc"}
+    settings = request.app.state.settings
+    mode = settings.authentication_mode
+    return {"mode": mode, "oidc_enabled": mode == "oidc", "dev_auto_login": settings.dev_auto_login}
+
+
+@router.post("/auth/dev-login", response_model=UserResponse)
+def dev_login(request: Request, response: Response, session: DatabaseSession) -> UserResponse:
+    """Sign a loopback developer in as the initial administrator without a password."""
+    settings = request.app.state.settings
+    if not settings.dev_auto_login:
+        raise HTTPException(status_code=404, detail="Not Found")
+    validate_origin(request)
+    # Settings already require loopback URLs; this also rejects proxied remote clients.
+    if request.client is None or request.client.host not in {"127.0.0.1", "::1"}:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    with session.begin():
+        user = session.scalar(
+            select(User).where(
+                User.email == settings.initial_admin_email,
+                User.role == "admin",
+                User.active.is_(True),
+            )
+        )
+        if user is None:
+            raise HTTPException(status_code=409, detail="Development administrator unavailable")
+        tokens = add_session(session, request, user, "web")
+        session.add(
+            AuditEvent(
+                event_type="auth.dev_auto_login", actor=user.id, target_id=user.id, details={}
+            )
+        )
+    session_cookies(response, request, *tokens)
+    return user_response(user)
 
 
 @router.post("/auth/login", response_model=UserResponse)

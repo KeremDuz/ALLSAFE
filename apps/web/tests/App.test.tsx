@@ -73,6 +73,40 @@ describe('role-aware panel access', () => {
     expect(paths.some((path) => /\/(devices|users|audit-events|modules)(?:\?|\/|$)/.test(path))).toBe(false);
   });
 
+  it('signs in through development auto-login only when the API enables it', async () => {
+    const normal = authenticatedFetch(analyst);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const path = String(input).split('?')[0];
+      if (path === '/api/v1/auth/config') return jsonResponse({ mode: 'local', oidc_enabled: false, dev_auto_login: true });
+      if (path === '/api/v1/auth/me') return jsonResponse({ detail: 'Invalid or missing credentials' }, 401);
+      if (path === '/api/v1/auth/dev-login') return jsonResponse(analyst);
+      return normal(input, options);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByRole('button', { name: 'Cihazlar' });
+
+    expect(fetchMock.mock.calls.some(([path, options]) => String(path) === '/api/v1/auth/dev-login' && options?.method === 'POST')).toBe(true);
+    expect(screen.queryByLabelText('Parola')).toBeNull();
+  });
+
+  it('shows the password form without calling auto-login when it is disabled', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input).split('?')[0];
+      if (path === '/api/v1/auth/config') return jsonResponse({ mode: 'local', oidc_enabled: false, dev_auto_login: false });
+      if (path === '/api/v1/auth/me') return jsonResponse({ detail: 'Invalid or missing credentials' }, 401);
+      throw new Error(`Unexpected request in test: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByLabelText('Parola');
+
+    expect(screen.queryByRole('button', { name: 'Geliştirici olarak devam et' })).toBeNull();
+    expect(fetchMock.mock.calls.some(([path]) => String(path).endsWith('/auth/dev-login'))).toBe(false);
+  });
+
   it('lets an analyst read devices without exposing administrator actions', async () => {
     const fetchMock = authenticatedFetch(analyst);
     vi.stubGlobal('fetch', fetchMock);

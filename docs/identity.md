@@ -52,6 +52,7 @@ Masaüstünde yerel onayın beklenip beklenmemesi hedefte açıkça başlatılan
 - Sunucu izinleri veritabanındaki güncel kullanıcı üzerinden hesaplar; eski bir açık ekran rol değişikliğini aşamaz. Devre dışı hesap giriş yapamaz.
 - Yerel HTTP laboratuvarında `ALLSAFE_COOKIE_SECURE=false` kullanılır. HTTPS laboratuvarında `true` gerekir. Bu ayar üretim engelini kaldırmaz.
 - Varsayılan oturum süresi sekiz saattir; `ALLSAFE_USER_SESSION_TTL_SECONDS=28800` ile belirtilir. Süre sınırı sunucuda uygulanır.
+- `ALLSAFE_DEV_AUTO_LOGIN=true` yalnız yerel geliştirme kolaylığıdır: panel açılınca `POST /api/v1/auth/dev-login` ile parolasız olarak ilk yönetici (`ALLSAFE_INITIAL_ADMIN_EMAIL`) oturumu açılır ve `auth.dev_auto_login` işlem kaydı yazılır. Ayar varsayılan olarak kapalıdır; `development` dışındaki ortamda, OIDC modunda veya panel/API adresi loopback değilse API başlamaz. Uç nokta loopback dışı istemciyi ve güvenilmeyen origin'i reddeder. Sunum, ortak ağ veya kabul testinde açık bırakılmaz.
 
 ## Ayarlar
 
