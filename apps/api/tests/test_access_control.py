@@ -18,6 +18,14 @@ def test_admin_can_list_management_resources(client, admin_headers):
         assert isinstance(response.json(), list)
 
 
+def test_iot_module_is_listed_as_planned_without_claiming_capability(client, admin_headers):
+    modules = {
+        item["id"]: item for item in client.get("/api/v1/modules", headers=admin_headers).json()
+    }
+    assert modules["iot"]["status"] == "planned"
+    assert "command-quarantine" in modules["iot"]["capabilities"]
+
+
 def test_device_credential_cannot_read_or_change_management_resources(client, enroll_device):
     device = enroll_device()
     agent_headers = {"Authorization": f"Bearer {device['agent_token']}"}

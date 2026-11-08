@@ -61,7 +61,7 @@ export interface Module {
   capabilities: string[];
   description: string;
 }
-export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch' | 'wazuh' | 'teams';
+export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch' | 'wazuh' | 'teams' | 'iot';
 export type VerifiedLabel = 'clean' | 'malicious' | 'uncertain';
 export interface ScanAnalysis {
   final_verdict: 'clean' | 'malicious' | 'unknown';
