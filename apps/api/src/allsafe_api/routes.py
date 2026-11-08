@@ -155,6 +155,21 @@ def list_modules(_: ModuleReader, request: Request) -> list[ModuleResponse]:
                 "summaries and saved dashboard layouts."
             ),
         ),
+        ModuleResponse(
+            id="iot",
+            name="IoT Security",
+            status="planned",
+            capabilities=[
+                "simulated-device-classes",
+                "command-quarantine",
+                "process-aware-detection",
+                "defense-comparison",
+            ],
+            description=(
+                "Planned: an approval-based command quarantine and process-aware anomaly "
+                "detection for simulated actuator and IP camera devices in an isolated lab."
+            ),
+        ),
     ]
 
 

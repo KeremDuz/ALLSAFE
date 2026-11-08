@@ -24,6 +24,7 @@ flowchart TB
 | Wazuh bağlantısı | Güvenlik olayları, agent durumu ve güvenlik bulguları |
 | PhishCatch | URL/QR analizi, mobil sonuç, tarama geçmişi ve doğrulanmış eğitim verisi |
 | Ekip yönetimi | Ekip, üyelik ve ekip rolü; ekip işleri, yönetici özeti ve onaylı bileşenlerle kayıtlı ekip panosu ([ADR 0013](decisions/0013-team-management.md)) |
+| IoT güvenliği (planlandı) | Komut karantinası ağ geçidi ve süreç farkındalıklı tespit; [tasarım](iot.md). Henüz kod yoktur |
 | Web paneli | Ortak cihaz, olay ve tarama ekranları; işlemlerin durumunu ve veri güncelliğini gösterme |
 
 ManageEngine entegrasyonu kapsamda değildir. Wazuh Agent ve ALLSAFE Agent farklı sorumluluklara sahiptir; iki kaynağın kayıtları ortak ALLSAFE cihaz kimliğiyle eşleştirilir. IP adresi tek başına cihaz kimliği değildir.

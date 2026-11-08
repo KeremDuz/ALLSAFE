@@ -11,6 +11,7 @@ ALLSAFE, kurumsal güvenlik verilerini ve cihaz yönetimini tek panelde birleşt
 - **ALLSAFE Agent:** Kendi geliştirdiğimiz Windows kayıt/envanter ajanı ve görünür uzaktan destek uygulaması; varsayılan yerel onay veya açıkça başlatılan gözetimsiz mod.
 - **Yönetici erişimi:** Önceden hazırlanmış Windows hesabıyla panelde OpenSSH terminali ve yerel istemci için RDP profili.
 - **Ekip yönetimi:** Ekipler, ekip rolleri, ekip işleri, yönetici özeti ve kayıtlı ekip panosu; [ayrıntılar](docs/teams.md).
+- **IoT güvenliği (planlandı):** Benzetilmiş aktüatör ve ağ kamerası için komut karantinası ve süreç farkındalıklı tespit; panelde yalnız tasarım görünür, [ayrıntılar](docs/iot.md).
 - **Ortak çekirdek:** Kimlik, yetki, cihazlar, olaylar ve işlem geçmişi.
 
 ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP ve firewall sonraki aşamalardadır. Uzaktan erişim laboratuvar prototipidir; [masaüstü modları ve SSH/RDP hedef hazırlığı](docs/managed-access.md) ayrı sınırlar taşır.
@@ -149,7 +150,7 @@ Görünür durum bildirimi ve durdurma düğmesi korunur. Bu mod Session 0, kili
 
 ## Proje belgeleri
 
-[Proje anlatımı ve demo rehberi](docs/project-overview.md) · [Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Windows ajanı](docs/windows-agent.md) · [Uzaktan masaüstü](docs/remote-desktop.md) · [Yönetici terminali ve gözetimsiz erişim](docs/managed-access.md) · [PhishCatch bağlantısı](docs/phishcatch.md) · [Wazuh bağlantısı](docs/wazuh.md) · [Ekip yönetimi](docs/teams.md) · [Laboratuvar kabulü](docs/lab-acceptance.md) · [Planlanan e-posta geçidi](docs/email-gateway-plan.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
+[Proje anlatımı ve demo rehberi](docs/project-overview.md) · [Mimari](docs/architecture.md) · [Yol haritası](docs/roadmap.md) · [Kimlik ve yetkiler](docs/identity.md) · [Web paneli](docs/web-panel.md) · [Windows ajanı](docs/windows-agent.md) · [Uzaktan masaüstü](docs/remote-desktop.md) · [Yönetici terminali ve gözetimsiz erişim](docs/managed-access.md) · [PhishCatch bağlantısı](docs/phishcatch.md) · [Wazuh bağlantısı](docs/wazuh.md) · [Ekip yönetimi](docs/teams.md) · [Planlanan IoT güvenliği](docs/iot.md) · [Laboratuvar kabulü](docs/lab-acceptance.md) · [Planlanan e-posta geçidi](docs/email-gateway-plan.md) · [Git düzeni](docs/git-workflow.md) · [Başlangıç kararı](docs/decisions/0001-architecture.md)
 
 ## PhishCatch
 
