@@ -54,7 +54,10 @@ def initialize_identity(application: FastAPI) -> None:
     with application.state.session_factory() as database, database.begin():
         if database.get(IdentityState, 1) is None:
             database.add(IdentityState(id=1, revision=0))
-        if configured.authentication_mode == "local" and configured.initial_admin_password:
+        # Auto-login labs may omit the password: the administrator then gets a random
+        # one nobody knows and is reachable only through loopback auto-login.
+        password = configured.initial_admin_password
+        if configured.authentication_mode == "local" and (password or configured.dev_auto_login):
             exists = database.scalar(select(User.id).limit(1))
             if exists is None:
                 database.add(
@@ -65,7 +68,7 @@ def initialize_identity(application: FastAPI) -> None:
                         active=True,
                         training_permission=True,
                         password_hash=hash_password(
-                            configured.initial_admin_password.get_secret_value()
+                            password.get_secret_value() if password else generate_token()
                         ),
                     )
                 )
