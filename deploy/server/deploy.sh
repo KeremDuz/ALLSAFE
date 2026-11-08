@@ -33,10 +33,23 @@ CACHE="$STACKS/.cache"
 FAILED="$STACKS/.failed-releases"
 
 log() { printf '%s [deploy:%s] %s\n' "$(date -u +%H:%M:%S)" "$TRIGGER" "$*"; }
+# Best-effort phone notification (notify.sh); the same alert is not repeated.
+alert_once() {
+  local subject=$1 title=$2 message=$3
+  [[ $(cat "$CACHE/last-alert" 2>/dev/null) == "$subject" ]] && return 0
+  printf '%s
+' "$subject" >"$CACHE/last-alert"
+  bash "$SRC/deploy/server/notify.sh" "$title" "$message" high >/dev/null 2>&1 || true
+}
+LAST_ERROR=
+ROLLBACK_ARMED=0
 # Returns non-zero so that, once the ERR trap is armed, a failed check also rolls back.
 die() {
   start_log
   log "ERROR: $*"
+  LAST_ERROR=$*
+  # Before anything changed nothing is rolled back, so alert here; otherwise rollback alerts.
+  ((ROLLBACK_ARMED)) || alert_once "error-$TRIGGER-$*" "Dağıtım başarısız" "$* (tetikleyen: $TRIGGER; ayrıntı: ~/stacks/deploy.log)"
   return 1
 }
 LOG_STARTED=0
@@ -320,9 +333,11 @@ rollback() {
       log "ERROR: allsafe did not become healthy after rollback"
   fi
   log "rollback finished; the failed release is not live"
+  alert_once "rollback-$ALLSAFE_KEY-$PHISHCATCH_KEY" "Dağıtım geri alındı"     "Yeni sürüm kontrolü geçemedi, önceki sürüm geri yüklendi. ${LAST_ERROR:-exit $status} (allsafe $ALLSAFE_KEY, phishcatch $PHISHCATCH_KEY; ayrıntı: ~/stacks/deploy.log)"
   exit "$status"
 }
 trap rollback ERR
+ROLLBACK_ARMED=1
 
 save_stack phishcatch
 save_stack allsafe
@@ -356,6 +371,11 @@ assert body["status"] == "ok" and body["url_model_available"] and body["html_mod
 done
 trap - ERR
 log "live: allsafe $(release_value allsafe RELEASE), phishcatch $(release_value phishcatch RELEASE)"
+changed=()
+((DO_ALLSAFE)) && changed+=("ALLSAFE ${COMMIT:0:7}")
+((DO_PHISHCATCH)) && changed+=("PhishCatch ${PC_COMMIT:0:7}")
+rm -f "$CACHE/last-alert"
+bash "$SRC/deploy/server/notify.sh" "Güncellendi" "${changed[*]} canlıda (tetikleyen: $TRIGGER)." default >/dev/null 2>&1 || true
 snapshot_source
 
 # ---------------------------------------------------------------- cleanup (best effort)
