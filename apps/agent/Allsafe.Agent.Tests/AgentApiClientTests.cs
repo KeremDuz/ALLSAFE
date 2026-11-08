@@ -11,7 +11,7 @@ public sealed class AgentApiClientTests
     private const string DeviceId = "cf8e9b4d-40b3-4eaf-af2c-a43803b99c36";
     private const string DeviceToken = "device-token-private-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     private const string EnrollmentToken = "enrollment-private-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    private const string AgentVersion = "0.2.0";
+    private const string AgentVersion = "0.2.1";
 
     [Fact]
     public async Task EnrollmentMatchesApiContractAndReturnsDeviceSpecificCredentials()

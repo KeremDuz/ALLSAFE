@@ -50,7 +50,7 @@ Yerel kullanıcı girişi, yönetici/analist/çalışan rolleri, ayrı eğitim o
 
 ## Yerel çalıştırma
 
-Python 3.12+ gerekir. Windows'ta kurulum betiği mevcut Codex Python ortamını da bulabilir:
+Python 3.12+ gerekir. Windows'ta kurulum betiği mevcut Codex Python ortamını da bulabilir. Windows betik çalıştırmayı engelliyorsa her PowerShell penceresinde önce `Set-ExecutionPolicy -Scope Process Bypass` çalıştırın (yalnız o pencere için geçerlidir):
 
 ```powershell
 .\scripts\setup.ps1
