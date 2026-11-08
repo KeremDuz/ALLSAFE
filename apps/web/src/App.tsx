@@ -1,8 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Activity, ArrowRight, Check, CheckCircle2, Clock3, Copy, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Menu, Monitor, Plus, RefreshCw, Search, Shield, SlidersHorizontal, Users, Workflow, X } from 'lucide-react';
+import { Activity, ArrowRight, Check, CheckCircle2, Clock3, Copy, Kanban, KeyRound, LayoutDashboard, LockKeyhole, LogOut, Menu, Monitor, Plus, RefreshCw, Search, Shield, SlidersHorizontal, Users, Workflow, X } from 'lucide-react';
 import { ApiError, apiRequest } from './api';
 import PhishCatchPage from './PhishCatchPage';
 import WazuhPage from './WazuhPage';
+import TeamsPage from './TeamsPage';
 import RemoteDesktopPanel from './RemoteDesktopPanel';
 import { DeviceStatus, DevicesTable, EmptyState, ErrorNotice, Loading, Modal } from './components';
 import { auditLabels, formatDate, formatMemory, initials, roles } from './format';
@@ -121,6 +122,7 @@ export default function App() {
     { page: 'devices', label: 'Cihazlar', icon: <Monitor size={19} />, visible: can('devices:read') },
     { page: 'phishcatch', label: 'PhishCatch', icon: <Search size={19} />, visible: can('scans:own:read') },
     { page: 'wazuh', label: 'Wazuh', icon: <Shield size={19} />, visible: can('wazuh:read') },
+    { page: 'teams', label: 'Ekipler', icon: <Kanban size={19} />, visible: true },
     { page: 'users', label: 'Kullanıcılar', icon: <Users size={19} />, visible: can('users:manage') },
     { page: 'audit', label: 'İşlem geçmişi', icon: <Activity size={19} />, visible: can('audit:read') },
     { page: 'modules', label: 'Modüller', icon: <Workflow size={19} />, visible: can('modules:read') },
@@ -146,6 +148,7 @@ export default function App() {
         {visiblePage === 'devices' && <DevicePage devices={devices} canEnroll={can('devices:manage')} onEnroll={() => setEnrollmentOpen(true)} onSelect={setSelectedDevice} refresh={refresh} />}
         {visiblePage === 'phishcatch' && <PhishCatchPage user={user} users={users.data ?? []} />}
         {visiblePage === 'wazuh' && <WazuhPage user={user} devices={devices.data} devicesError={devices.error} />}
+        {visiblePage === 'teams' && <TeamsPage user={user} users={users.data ?? []} />}
         {visiblePage === 'users' && <UsersPage users={users} currentUser={user} local={config.mode === 'local'} refresh={refresh} onEdit={setEditingUser} onPassword={setPasswordUser} />}
         {visiblePage === 'audit' && <AuditPage audit={audit} users={users.data ?? []} devices={deviceList} refresh={refresh} />}
         {visiblePage === 'modules' && <ModulesPage modules={modules} refresh={refresh} navigate={navigate} />}
@@ -349,7 +352,7 @@ function AuditPage({ audit, users, devices, refresh }: { audit: Resource<AuditEv
   return <><PageHeading title="İşlem geçmişi"><RefreshButton onClick={refresh} busy={audit.loading} /></PageHeading>{audit.error && <ErrorNotice message={audit.error} retry={refresh} />}<section className="card"><div className="table-toolbar"><div className="search-field"><Search size={18} /><label className="sr-only" htmlFor="audit-search">İşlem ara</label><input id="audit-search" placeholder="İşlem, kullanıcı veya cihaz ara…" value={search} onChange={(event) => setSearch(event.target.value)} /></div><span className="toolbar-caption"><Clock3 size={14} />En yeni kayıtlar önce</span></div>{audit.loading && !audit.data ? <Loading /> : audit.data === null ? <div className="card-inline-note">İşlem kayıtları alınamadı.</div> : list.length ? <div className="table-scroll"><table className="data-table audit-table"><thead><tr><th>İşlem</th><th>İşlemi yapan</th><th>İlgili kayıt</th><th>Tarih ve saat</th></tr></thead><tbody>{list.map((event) => <tr key={event.id}><td data-label="İşlem"><div className="audit-event"><strong>{auditLabels[event.event_type] ?? 'Yönetim işlemi kaydedildi'}</strong></div></td><td data-label="İşlemi yapan">{actorName(event.actor, users)}</td><td data-label="İlgili kayıt"><span className="cell-muted">{targetName(event, users, devices)}</span></td><td data-label="Tarih ve saat"><time className="cell-muted" dateTime={event.occurred_at}>{formatDate(event.occurred_at, true)}</time></td></tr>)}</tbody></table></div> : <EmptyState title="İşlem bulunamadı" description={search ? 'Arama alanını değiştirerek yeniden deneyin.' : 'Kaydedilen yönetim işlemleri burada görünür.'} />}<div className="table-footer"><span>{audit.data === null ? 'İşlem sayısı henüz bilinmiyor' : `${list.length} işlem gösteriliyor · En fazla 500 kayıt`}</span><span>İstanbul saat dilimi</span></div></section></>;
 }
 
-function moduleTitle(module: Module): string { return module.id === 'endpoint-management' ? 'Cihaz yönetimi' : module.name; }
+function moduleTitle(module: Module): string { return ({ 'endpoint-management': 'Cihaz yönetimi', teams: 'Ekip yönetimi' } as Record<string, string>)[module.id] ?? module.name; }
 function moduleStatus(module: Module): string {
   if (module.status === 'planned') return 'Planlandı';
   if (module.status !== 'available') return 'Bağlı değil';
@@ -362,6 +365,7 @@ function ModulesPage({ modules, refresh, navigate }: { modules: Resource<Module[
     phishcatch: 'URL / QR analizi ve tarama geçmişi',
     wazuh: 'Agent kayıtları ve güvenlik alarmları',
     'endpoint-management': 'Temel envanter ve yerel onaylı uzaktan masaüstü.',
+    teams: 'Ekipler, ekip rolleri, ekip işleri, yönetici özeti ve kayıtlı ekip panosu.',
   };
-  return <><PageHeading title="Modüller"><RefreshButton onClick={refresh} busy={modules.loading} /></PageHeading>{modules.error && <ErrorNotice message={modules.error} retry={refresh} />}{modules.loading && !modules.data ? <Loading /> : <section className="card module-list">{(modules.data ?? []).map((module) => <article className="module-row" key={module.id}><div><h2>{moduleTitle(module)}</h2><p>{descriptions[module.id] ?? module.description}</p></div><span className={`module-status ${module.status}`}>{moduleStatus(module)}</span>{(module.id === 'phishcatch' || module.id === 'wazuh') && <button className="text-button" onClick={() => navigate(module.id as Page)} aria-label={`${moduleTitle(module)} modülünü aç`}>Aç<ArrowRight size={14} /></button>}</article>)}</section>}<p className="section-note">Canlı bağlantı ve model durumu ilgili modülde gösterilir.</p></>;
+  return <><PageHeading title="Modüller"><RefreshButton onClick={refresh} busy={modules.loading} /></PageHeading>{modules.error && <ErrorNotice message={modules.error} retry={refresh} />}{modules.loading && !modules.data ? <Loading /> : <section className="card module-list">{(modules.data ?? []).map((module) => <article className="module-row" key={module.id}><div><h2>{moduleTitle(module)}</h2><p>{descriptions[module.id] ?? module.description}</p></div><span className={`module-status ${module.status}`}>{moduleStatus(module)}</span>{(module.id === 'phishcatch' || module.id === 'wazuh' || module.id === 'teams') && <button className="text-button" onClick={() => navigate(module.id as Page)} aria-label={`${moduleTitle(module)} modülünü aç`}>Aç<ArrowRight size={14} /></button>}</article>)}</section>}<p className="section-note">Canlı bağlantı ve model durumu ilgili modülde gösterilir.</p></>;
 }

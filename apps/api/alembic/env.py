@@ -9,6 +9,7 @@ from allsafe_api.managed_access import models as managed_access_models  # noqa: 
 from allsafe_api.models import Base
 from allsafe_api.phishcatch import models as phishcatch_models  # noqa: F401
 from allsafe_api.remote_desktop import models as desktop_models  # noqa: F401
+from allsafe_api.teams import models as teams_models  # noqa: F401
 from allsafe_api.wazuh import models as wazuh_models  # noqa: F401
 
 config = context.config
