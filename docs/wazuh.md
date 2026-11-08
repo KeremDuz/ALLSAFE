@@ -1,6 +1,8 @@
 # Wazuh bağlantısı
 
-Bu modül Wazuh Server API'den agent durumunu, Wazuh Indexer API'den alarmları okur. ALLSAFE ve Wazuh agent'ları ayrı kimliklerdir; yönetici bunları açıkça eşleştirir. Wazuh'a uzaktan komut gönderilmez. Henüz Wazuh laboratuvar sunucusu yoktur; bağlantı kodu ve hata/yetki sözleşmeleri hazırlanmıştır, canlı Wazuh kabulü yapılmamıştır.
+Bu modül Wazuh Server API'den agent durumunu, Wazuh Indexer API'den alarmları okur. ALLSAFE ve Wazuh agent'ları ayrı kimliklerdir; yönetici bunları açıkça eşleştirir. Wazuh'a uzaktan komut gönderilmez.
+
+Laboratuvar Wazuh'u (4.14.10, tek düğüm) proje sunucusunda çalışır. Sunucudaki ALLSAFE paneli ona salt okunur hesaplarla bağlıdır ([sunucu dağıtımı](../deploy/server/README.md)); hocaların yerel kopyaları aynı hesaplarla tailnet üzerinden bağlanır ([kurulum](teacher-setup.md)). Ajanlı uçtan uca kabul (aşağıdaki adımlar) ayrıca kaydedilir.
 
 ## Yapılandırma
 
@@ -37,6 +39,43 @@ Yönetici ve analist Wazuh ekranını okuyabilir. Yalnızca yönetici yerel eşl
 Varsayılan listeler 100 kayıtla sınırlıdır. API en fazla 500 kayıt, agent offset'i en fazla 10000 ve alarm penceresi en fazla 168 saat kabul eder. Panel yenileme anındaki sonuçları gösterir; sürekli alarm toplama veya geçmişi ALLSAFE'e kopyalama henüz yoktur. Alarmlar olayın `timestamp` alanına göre sıralanır; aynı `_id` farklı indekslerde bulunabileceği için kimlik `(index, alert_id)` çiftidir. Tam log, IP, parola ve ham response yerine izin verilen özet alanlar döner.
 
 `unconfigured`, `error` ve `partial` durumları birbirinden ayrıdır. Yapılandırılmamış veya başarısız kaynakta kayıtlar/sayı bilinmez (`null`). Eksik shard, süre aşımı, başarısız API öğesi veya `gte` alt sınırı tam sayı olarak sunulmaz. Yalnızca doğrulanmış tam boş sorgu `0` olur. Server bağlıyken Indexer hatalı olabilir; panel ikisini tek bir başarılı bağlantıymış gibi göstermez. Alan gelmezse son bağlantı/OS bilgisi bilinmiyor kalır; `never_connected` çevrim içi sayılmaz.
+
+## Wazuh ajanı kurulumu
+
+Ajan, Wazuh yöneticisine 1514 (olay) ve 1515 (kayıt) portlarından bağlanır. Kayıt **parola ister**. Parola sunucuda `~/stacks/wazuh/.env` dosyasındaki `WAZUH_ENROLLMENT_PASSWORD` satırında durur; komutlar onu SSH ile okur, ekrana yazmaz. Ajan sürümü yöneticiyle aynı tutulur (4.14.10).
+
+Yönetici adresi:
+
+- tailnet'teki cihazlar için `100.87.174.61`;
+- ev ağındaki cihazlar için `192.168.1.4`;
+- sunucunun kendisi için `127.0.0.1`.
+
+Paylaşımla tailnet'e katılan cihazların erişim kuralında 1514 ve 1515 portları da açık olmalıdır.
+
+**Windows** (yönetici olarak açılmış PowerShell'de):
+
+```powershell
+$ver = '4.14.10-1'; $msi = "$env:TEMP\wazuh-agent-$ver.msi"
+Invoke-WebRequest "https://packages.wazuh.com/4.x/windows/wazuh-agent-$ver.msi" -OutFile $msi
+$sum = (Invoke-RestMethod "https://packages.wazuh.com/4.x/checksums/wazuh/4.14.10/wazuh-agent-$ver.msi.sha512").Split(' ')[0]
+if ((Get-FileHash $msi -Algorithm SHA512).Hash -ne $sum.ToUpper()) { throw 'SHA512 eslesmedi' }
+$pass = ssh keremserver@100.87.174.61 "sed -n 's/^WAZUH_ENROLLMENT_PASSWORD=//p' ~/stacks/wazuh/.env"
+Start-Process msiexec.exe -Wait -ArgumentList "/i `"$msi`" /qn WAZUH_MANAGER=100.87.174.61 WAZUH_AGENT_NAME=$env:COMPUTERNAME WAZUH_REGISTRATION_PASSWORD=$pass"
+Start-Service WazuhSvc; Get-Service WazuhSvc
+```
+
+**Ubuntu/Debian** (sudo ile):
+
+```sh
+curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH | sudo gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | sudo tee /etc/apt/sources.list.d/wazuh.list
+sudo apt-get update
+sudo WAZUH_MANAGER=100.87.174.61 WAZUH_AGENT_NAME="$(hostname)"   WAZUH_REGISTRATION_PASSWORD="$(ssh keremserver@100.87.174.61 "sed -n 's/^WAZUH_ENROLLMENT_PASSWORD=//p' ~/stacks/wazuh/.env")"   apt-get install -y wazuh-agent=4.14.10-1
+sudo apt-mark hold wazuh-agent
+sudo systemctl daemon-reload && sudo systemctl enable --now wazuh-agent
+```
+
+Kurulumdan birkaç dakika sonra ajan ALLSAFE panelindeki **Wazuh** sayfasında ve Wazuh Dashboard'da görünür. Ajanı ALLSAFE cihazıyla eşleştirmek için aşağıdaki kurallar geçerlidir. Bir ajanı kaldırmak için cihazda ajan kaldırılır, yöneticide `docker exec wazuh-wazuh.manager-1 /var/ossec/bin/manage_agents -r <ID>` çalıştırılır.
 
 ## Cihaz eşleştirmesi
 

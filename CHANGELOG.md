@@ -2,6 +2,8 @@
 
 ## Yayımlanmamış
 
+- Sunucu işletimi: Wazuh'a salt okunur bağlanan sunucu paneli; dağıtım hataları, servis sorunları ve yedek hataları için telefona ntfy bildirimi; 5 dakikalık sağlık kontrolü ve sunucu dışına çekilen haftalık yedek.
+
 ## 0.2.0-alpha.1 — Ekip yönetimi, IoT tasarımı ve sunucu işletimi
 
 - Ekip yönetimi: ekipler, ekip rolleri (üye/lider/yönetici), ekip işleri, yönetici özeti ve kayıtlı ekip panosu; ekip dışındaki kullanıcı ekibi göremez, üye yalnız kendi işlerini görür.

@@ -72,6 +72,36 @@ Yeni istemci çıktısı yayımlamak için o çıktıyla yeni bir istemci imajı
 - Runner kullanıcısı `docker` grubundadır, yani sunucuda yönetici yetkisine eşdeğerdir. Bu repoya yazma yetkisi verilen herkes sunucuda kod çalıştırabilir; yetkiyi buna göre verin. Repo herkese açılırsa önce runner kaldırılmalıdır. PhishCatch herkese açık olduğu için runner'a bağlanmaz; yalnız Backend CI'dan geçmiş commit'leri sunucu kendisi çeker.
 - Yeni bir proje eklemek: projeyi Docker'a (Dockerfile + compose) alın, yığın tanımını ve dağıtım betiğini bu klasördeki düzene göre ekleyin, sunucuda `~/stacks/<proje>/.env` oluşturun.
 
+## Bildirimler, izleme ve yedekler
+
+**Bildirimler** [ntfy](https://ntfy.sh) ile telefona gelir: sunucudaki `~/stacks/notify.env` dosyasında `NTFY_URL=https://ntfy.sh/<konu>` satırı bulunur. Konu adı uzun ve rastgeledir, bilen herkes bildirimleri okuyabileceği için paylaşılmaz. Telefonda ntfy uygulamasında bu konuya abone olunur. Dosya yoksa hiçbir bildirim gönderilmez. Bildirim gelen durumlar:
+
+- bir dağıtım başarısız olduğunda veya geri alındığında; aynı hata tekrar etse de bir kez gönderilir;
+- bir dağıtım yeni bir sürümü canlıya aldığında (düşük öncelik);
+- `monitor.sh` bir sorun bulduğunda ve her şey normale döndüğünde;
+- haftalık yedek alınamadığında.
+
+**İzleme** (`monitor.sh`, 5 dakikada bir) şunlara bakar: yönetilen konteynerlerin durumu ve sağlığı, panel, herkese açık PhishCatch, entegrasyon kapısı, Wazuh API ve Indexer, GitHub runner servisi, Tailscale, disk (%85) ve boş bellek (300 MB). Yalnız sorun listesi değiştiğinde bildirim gönderir.
+
+**Yedekler** (`backup.sh`, haftada bir) `~/stacks/backups/weekly/allsafe-backup-<zaman>.tar` dosyasını üretir. Son 6 yedek tutulur ve `allsafe-backup-latest.tar` en yenisini gösterir. Arşivde şunlar bulunur:
+
+- ALLSAFE ve PhishCatch veritabanları: tutarlı SQLite yedeği, bütünlük kontrolüyle;
+- yığın tanımları, `.env` gizli bilgileri ve indirme dosyaları;
+- Wazuh yönetici yapılandırması: ajan anahtarları, kayıt parolası, API kullanıcıları;
+- Portainer verisi.
+
+Wazuh alarm geçmişi (büyük) ve modeller (özel release'te) yedekte yoktur. Disk arızasına karşı kopya sunucudan alınır: sahibin bilgisayarında haftalık bir Windows görevi `scripts/pull-server-backup.ps1` ile son yedeği `%USERPROFILE%\ALLSAFE-Backups` klasörüne çeker ve son 8'ini tutar. Arşivler gizli bilgi içerir; klasör kimseyle paylaşılmamalıdır.
+
+Sunucudaki zamanlanmış işler (`keremserver` kullanıcısının crontab'ı):
+
+```cron
+*/10 * * * * [ -f "$HOME/stacks/.source/allsafe/deploy/server/deploy.sh" ] && DEPLOY_TRIGGER=schedule /usr/bin/bash "$HOME/stacks/.source/allsafe/deploy/server/deploy.sh" >/dev/null 2>&1 # ALLSAFE_AUTO_DEPLOY
+*/5 * * * * [ -f "$HOME/stacks/.source/allsafe/deploy/server/monitor.sh" ] && /usr/bin/bash "$HOME/stacks/.source/allsafe/deploy/server/monitor.sh" >/dev/null 2>&1 # ALLSAFE_MONITOR
+30 3 * * 0 [ -f "$HOME/stacks/.source/allsafe/deploy/server/backup.sh" ] && /usr/bin/bash "$HOME/stacks/.source/allsafe/deploy/server/backup.sh" >/dev/null 2>&1 # ALLSAFE_BACKUP
+```
+
+Bu betikler de son dağıtılan ALLSAFE kopyasından (`~/stacks/.source/allsafe`) çalışır, yani `develop`'a alınan değişiklikleri kendiliğinden kullanır.
+
 ## Elle dağıtım ve geri dönüş
 
 Aynı ALLSAFE commit'ini yeniden dağıtmak için Actions'ta ilgili **Deploy server** çalıştırmasında **Re-run all jobs** kullanılır. Sunucuda:
