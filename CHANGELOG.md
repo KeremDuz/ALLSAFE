@@ -2,6 +2,7 @@
 
 ## Yayımlanmamış
 
+- Sunucu dağıtımı GitHub'ı kendisi izler: ALLSAFE `develop`'ta zorunlu API/Web/Agent kontrollerinden geçen commit'ler 10 dakika içinde, sunucuda GitHub kimlik bilgisi olmadan dağıtılır; yeni commit kendi `deploy.sh`'ı ile denenir ve yalnız canlıya çıkınca kalıcı olur. Repo herkese açılırken self-hosted runner kaldırılır.
 - Sunucu işletimi: Wazuh'a salt okunur bağlanan sunucu paneli; dağıtım hataları, servis sorunları ve yedek hataları için telefona ntfy bildirimi; 5 dakikalık sağlık kontrolü ve sunucu dışına çekilen haftalık yedek.
 
 ## 0.2.0-alpha.1 — Ekip yönetimi, IoT tasarımı ve sunucu işletimi

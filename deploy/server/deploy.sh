@@ -2,12 +2,15 @@
 # Deploys ALLSAFE and PhishCatch to the home server's ~/stacks.
 #
 # Triggers:
-#   push      .github/workflows/deploy-server.yml, on every push to ALLSAFE develop (self-hosted runner)
-#   schedule  cron every 10 minutes, from the snapshot of the last deployed ALLSAFE tree
-#             (~/stacks/.source/allsafe), to pick up new PhishCatch develop commits
-#   manual    anyone running this script by hand
+#   schedule  cron every 10 minutes (# ALLSAFE_AUTO_DEPLOY), from the snapshot of the last deployed
+#             ALLSAFE tree (~/stacks/.source/allsafe). It follows ALLSAFE develop once a commit passed
+#             the required API/Web/Agent checks, and PhishCatch develop once its Backend CI passed.
+#             Both repositories are public, so the server needs no GitHub credentials.
+#   manual    anyone running this script by hand deploys exactly the tree it is run from
 #
-# PhishCatch follows its develop branch, but only commits whose Backend CI passed. Each stack has a
+# A new ALLSAFE commit is exported to ~/stacks/.source/allsafe.next and its own deploy.sh runs; the
+# snapshot is replaced only once that release is live, so a broken commit never becomes the code
+# that later scheduled runs execute. Each stack has a
 # content key built from exactly the files its images and configuration come from; a stack is
 # rebuilt and restarted only when its key changes. Secrets stay in ~/stacks/<stack>/.env and are
 # never read or printed here. A failure after the stacks start changing restores the previous
@@ -19,6 +22,10 @@ STACKS=${ALLSAFE_STACKS_DIR:-$HOME/stacks}
 REPO=${GH_REPOSITORY:-KeremDuz/ALLSAFE}
 TRIGGER=${DEPLOY_TRIGGER:-manual}
 FORCE=${DEPLOY_FORCE:-0}
+ALLSAFE_GIT=https://github.com/KeremDuz/ALLSAFE.git
+ALLSAFE_API=https://api.github.com/repos/KeremDuz/ALLSAFE
+ALLSAFE_BRANCH=develop
+ALLSAFE_REQUIRED_CHECKS='["API checks", "Web checks", "Agent checks"]'
 PHISHCATCH_GIT=https://github.com/KeremDuz/PhishCatch.git
 PHISHCATCH_API=https://api.github.com/repos/KeremDuz/PhishCatch
 PHISHCATCH_BRANCH=develop
@@ -31,14 +38,14 @@ WAIT_SECONDS=480
 SNAPSHOT="$STACKS/.source/allsafe"
 CACHE="$STACKS/.cache"
 FAILED="$STACKS/.failed-releases"
+export GIT_TERMINAL_PROMPT=0
 
 log() { printf '%s [deploy:%s] %s\n' "$(date -u +%H:%M:%S)" "$TRIGGER" "$*"; }
 # Best-effort phone notification (notify.sh); the same alert is not repeated.
 alert_once() {
   local subject=$1 title=$2 message=$3
   [[ $(cat "$CACHE/last-alert" 2>/dev/null) == "$subject" ]] && return 0
-  printf '%s
-' "$subject" >"$CACHE/last-alert"
+  printf '%s\n' "$subject" >"$CACHE/last-alert"
   bash "$SRC/deploy/server/notify.sh" "$title" "$message" high >/dev/null 2>&1 || true
 }
 LAST_ERROR=
@@ -52,7 +59,8 @@ die() {
   ((ROLLBACK_ARMED)) || alert_once "error-$TRIGGER-$*" "Dağıtım başarısız" "$* (tetikleyen: $TRIGGER; ayrıntı: ~/stacks/deploy.log)"
   return 1
 }
-LOG_STARTED=0
+# A child run started by the parent below inherits its lock and its log.
+LOG_STARTED=${DEPLOY_LOG_HELD:-0}
 start_log() {
   ((LOG_STARTED)) && return 0
   LOG_STARTED=1
@@ -70,11 +78,13 @@ notice_once() {
 }
 
 mkdir -p "$STACKS/backups" "$CACHE"
-exec 9>"$STACKS/.deploy.lock"
-if [[ $TRIGGER == schedule ]]; then
-  flock -n 9 || exit 0
-else
-  flock -w 1800 9 || die "another deploy is still running after 30 minutes"
+if [[ ${DEPLOY_LOCK_HELD:-0} != 1 ]]; then
+  exec 9>"$STACKS/.deploy.lock"
+  if [[ $TRIGGER == schedule ]]; then
+    flock -n 9 || exit 0
+  else
+    flock -w 1800 9 || die "another deploy is still running after 30 minutes"
+  fi
 fi
 [[ $TRIGGER == schedule ]] || start_log
 
@@ -114,6 +124,17 @@ phishcatch_ci() {
     else "failure" end) end' <<<"$json"
 }
 failed_before() { grep -qxF "$1 $2" "$FAILED" 2>/dev/null; }
+# success only when the newest run of every required check passed on the commit
+allsafe_ci() {
+  local json
+  json=$(curl -fsS --max-time 20 -H 'Accept: application/vnd.github+json' \
+    "$ALLSAFE_API/commits/$1/check-runs?per_page=100") || { echo unknown; return 0; }
+  jq -r --argjson required "$ALLSAFE_REQUIRED_CHECKS" '[$required[] as $name |
+    ([.check_runs[] | select(.name == $name)] | max_by(.id))] as $latest |
+    if any($latest[]; . == null) then "missing"
+    elif any($latest[]; .status != "completed") then "pending"
+    elif all($latest[]; .conclusion == "success") then "success" else "failure" end' <<<"$json"
+}
 
 for stack in phishcatch allsafe; do
   [[ -f $STACKS/$stack/.env && -f $STACKS/$stack/release.env ]] ||
@@ -121,11 +142,53 @@ for stack in phishcatch allsafe; do
 done
 COMMIT=$(git -C "$SRC" rev-parse HEAD 2>/dev/null || cat "$SRC/.commit" 2>/dev/null || echo unknown)
 
+# ---------------------------------------------------------------- follow ALLSAFE develop
+if [[ $TRIGGER == schedule && ${DEPLOY_SOURCE_READY:-0} != 1 ]]; then
+  AS_REPO="$CACHE/allsafe"
+  if { [[ -d $AS_REPO/.git ]] || git clone --quiet --no-checkout "$ALLSAFE_GIT" "$AS_REPO" 2>/dev/null; } &&
+    git -C "$AS_REPO" fetch --quiet --prune origin \
+      "+refs/heads/$ALLSAFE_BRANCH:refs/remotes/origin/$ALLSAFE_BRANCH" 2>/dev/null; then
+    AS_TIP=$(git -C "$AS_REPO" rev-parse "refs/remotes/origin/$ALLSAFE_BRANCH")
+    if [[ $AS_TIP != "$COMMIT" && $AS_TIP != "$(cat "$CACHE/allsafe-failed-commit" 2>/dev/null)" ]]; then
+      ci=$(allsafe_ci "$AS_TIP")
+      if [[ $ci == success ]]; then
+        start_log
+        log "ALLSAFE ${AS_TIP:0:12} passed CI; deploying it with its own deploy.sh"
+        rm -rf "$SNAPSHOT.next"
+        mkdir -p "$SNAPSHOT.next"
+        git -C "$AS_REPO" archive "$AS_TIP" | tar -x -C "$SNAPSHOT.next"
+        printf '%s\n' "$AS_TIP" >"$SNAPSHOT.next/.commit"
+        status=0
+        DEPLOY_SOURCE_READY=1 DEPLOY_LOCK_HELD=1 DEPLOY_LOG_HELD=1 \
+          bash "$SNAPSHOT.next/deploy/server/deploy.sh" || status=$?
+        if ((status == 0)) && [[ -f $SNAPSHOT.next/.promote ]]; then
+          rm -f "$SNAPSHOT.next/.promote"
+          rm -rf "$SNAPSHOT.old"
+          mv "$SNAPSHOT" "$SNAPSHOT.old"
+          mv "$SNAPSHOT.next" "$SNAPSHOT"
+          rm -rf "$SNAPSHOT.old"
+          log "server now follows ALLSAFE ${AS_TIP:0:12}"
+        else
+          # Not live (failed, rolled back or skipped): never try this commit again on a schedule.
+          printf '%s\n' "$AS_TIP" >"$CACHE/allsafe-failed-commit"
+          rm -rf "$SNAPSHOT.next"
+          log "ALLSAFE ${AS_TIP:0:12} is not live; staying on ${COMMIT:0:12}"
+        fi
+        exit "$status"
+      fi
+      notice_once "ci-allsafe-$AS_TIP-$ci" "ALLSAFE ${AS_TIP:0:8} CI is $ci; keeping ${COMMIT:0:8}"
+    fi
+  else
+    notice_once "fetch-allsafe" "ALLSAFE $ALLSAFE_BRANCH could not be fetched; keeping ${COMMIT:0:8}"
+  fi
+fi
+
 # ---------------------------------------------------------------- PhishCatch source
 PC_REPO="$CACHE/phishcatch"
 [[ -d $PC_REPO/.git ]] || git clone --quiet --no-checkout "$PHISHCATCH_GIT" "$PC_REPO"
 git -C "$PC_REPO" fetch --quiet --prune origin \
-  "+refs/heads/$PHISHCATCH_BRANCH:refs/remotes/origin/$PHISHCATCH_BRANCH"
+  "+refs/heads/$PHISHCATCH_BRANCH:refs/remotes/origin/$PHISHCATCH_BRANCH" 2>/dev/null ||
+  notice_once "fetch-phishcatch" "PhishCatch $PHISHCATCH_BRANCH could not be fetched; using the last fetched commit"
 PC_TIP=$(git -C "$PC_REPO" rev-parse "refs/remotes/origin/$PHISHCATCH_BRANCH")
 PC_DEPLOYED=$(release_value phishcatch PHISHCATCH_COMMIT)
 PC_COMMIT=$PC_TIP
@@ -153,19 +216,27 @@ DO_PHISHCATCH=0
 [[ $ALLSAFE_KEY != "$CUR_ALLSAFE" || $FORCE == 1 ]] && DO_ALLSAFE=1
 [[ $PHISHCATCH_KEY != "$CUR_PHISHCATCH" || $FORCE == 1 ]] && DO_PHISHCATCH=1
 # Scheduled runs never retry a release that already failed and was rolled back.
+SKIPPED_FAILED=0
 if [[ $TRIGGER == schedule ]]; then
   if ((DO_ALLSAFE)) && failed_before allsafe "$ALLSAFE_KEY"; then
     DO_ALLSAFE=0
+    SKIPPED_FAILED=1
     notice_once "failed-allsafe-$ALLSAFE_KEY" "allsafe $ALLSAFE_KEY failed before; not retrying"
   fi
   if ((DO_PHISHCATCH)) && failed_before phishcatch "$PHISHCATCH_KEY"; then
     DO_PHISHCATCH=0
+    SKIPPED_FAILED=1
     notice_once "failed-phishcatch-$PHISHCATCH_KEY" "phishcatch $PHISHCATCH_KEY failed before; not retrying"
   fi
 fi
 
 snapshot_source() {
-  # Keep the deployed ALLSAFE tree for scheduled runs; skipped when running from the snapshot.
+  # Keep the deployed ALLSAFE tree for scheduled runs. A child run tells its parent to promote it;
+  # a manual run from a git checkout replaces the snapshot itself.
+  if [[ $SRC == "$SNAPSHOT.next" ]]; then
+    touch "$SRC/.promote"
+    return 0
+  fi
   git -C "$SRC" rev-parse HEAD >/dev/null 2>&1 || return 0
   rm -rf "$SNAPSHOT.new" "$SNAPSHOT.old"
   mkdir -p "$SNAPSHOT.new"
@@ -183,7 +254,8 @@ if ((DO_ALLSAFE == 0 && DO_PHISHCATCH == 0)); then
     printf 'PHISHCATCH_COMMIT=%s\n' "$PC_COMMIT" >>"$STACKS/phishcatch/release.env"
   fi
   [[ $TRIGGER == schedule ]] || log "up to date (allsafe $CUR_ALLSAFE, phishcatch $CUR_PHISHCATCH)"
-  snapshot_source
+  # A release that was skipped because it failed before is not live, so it must not be promoted.
+  ((SKIPPED_FAILED)) || snapshot_source
   exit 0
 fi
 
@@ -220,10 +292,10 @@ STAGED_MODELS="$STACKS/phishcatch/models.new"
 MODELS_CHANGED=0
 download_asset() {
   local tag=$1 name=$2 dest=$3 headers url
-  [[ -n ${GH_TOKEN:-} ]] || die "GH_TOKEN is required to download $name"
+  # The release is public; a token (GH_TOKEN) is only used when one is provided.
   headers=$(mktemp)
   chmod 600 "$headers"
-  printf 'Authorization: Bearer %s\n' "$GH_TOKEN" >"$headers"
+  if [[ -n ${GH_TOKEN:-} ]]; then printf 'Authorization: Bearer %s\n' "$GH_TOKEN" >"$headers"; fi
   url=$(curl -fsSL -H @"$headers" -H 'Accept: application/vnd.github+json' \
     "https://api.github.com/repos/$REPO/releases/tags/$tag" |
     jq -r --arg name "$name" '.assets[] | select(.name == $name) | .url')
