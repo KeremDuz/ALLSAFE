@@ -1,0 +1,104 @@
+# Managed by deploy/server/deploy.sh in the ALLSAFE repository; edit it there, not on the server.
+# PhishCatch analysis service with two ingress listeners sharing its loopback:
+#   18181 public consumer edge (Tailscale Funnel :8443)
+#   18190 ALLSAFE integration edge (tailnet-only Tailscale Serve :10443, and the phishcatch-link network)
+name: phishcatch
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  backend:
+    <<: *hardening
+    image: phishcatch-backend:${RELEASE:?Set RELEASE in release.env}
+    command: [sh, -c, "python -c 'from app.dependencies import get_training_store; get_training_store()' && exec uvicorn app.main:app --host 127.0.0.1 --port 9000 --workers 1"]
+    env_file: [providers.env]
+    environment:
+      PORT: "9000"
+      ALLSAFE_INTEGRATION_KEY: ${PHISHCATCH_INTEGRATION_KEY:?Set the integration key in .env}
+      ML_MODEL_PATH: /app/models/phishcatch_url_model.pkl
+      HTML_MODEL_PATH: /app/models/phishcatch_html_model.pkl
+      ML_SCALER_PATH: ""
+      TRAINING_DB_PATH: /app/data/phishcatch_training.sqlite3
+      HTML_BROWSER_RENDER_ENABLED: "0"
+      HTML_BROWSER_SCREENSHOT_ENABLED: "0"
+      SCANNER_CACHE_MAX_ENTRIES: "256"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      CORS_ALLOWED_ORIGINS: https://keremserver.tailf2e48d.ts.net,https://keremserver.tailf2e48d.ts.net:8443,https://keremduz.github.io
+    ports:
+      - "127.0.0.1:18181:18181"
+      - "127.0.0.1:18190:18190"
+    networks:
+      default: {}
+      link:
+        aliases: [phishcatch-integration]
+    volumes:
+      - data:/app/data
+      - ./models:/app/models:ro
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    mem_limit: 3g
+    cpus: "2.0"
+    healthcheck:
+      test: [CMD, python, -c, "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:9000/health/layers',timeout=10)); s={x['name']:x for l in d['layers'] for x in l.get('scanners',[])}; assert s['MLModelScanner']['model_loaded'] and s['MLModelScanner']['probabilities_available'] and s['HtmlScraper']['model_loaded']"]
+      interval: 45s
+      timeout: 15s
+      retries: 4
+      start_period: 120s
+
+  public_edge:
+    <<: *hardening
+    image: phishcatch-public-edge:${RELEASE:?Set RELEASE in release.env}
+    network_mode: service:backend
+    depends_on:
+      backend: {condition: service_healthy, restart: true}
+    cap_drop: []
+    volumes:
+      - ./downloads:/usr/share/nginx/downloads:ro
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=1777
+      - /var/run:size=1m,mode=1777
+    mem_limit: 128m
+    cpus: "0.5"
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1:18181/]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+
+  integration_edge:
+    <<: *hardening
+    image: nginx:stable-alpine
+    network_mode: service:backend
+    depends_on:
+      backend: {condition: service_healthy, restart: true}
+    cap_drop: []
+    volumes:
+      - ./integration-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=1777
+      - /var/run:size=1m,mode=1777
+    mem_limit: 64m
+    cpus: "0.25"
+    healthcheck:
+      # The health path itself requires the integration key; only check the listener.
+      test: [CMD-SHELL, "nc -z 127.0.0.1 18190"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+
+networks:
+  link:
+    name: phishcatch-link
+    external: true
+
+volumes:
+  data:
