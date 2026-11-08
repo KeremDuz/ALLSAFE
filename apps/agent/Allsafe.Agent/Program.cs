@@ -5,7 +5,7 @@ namespace Allsafe.Agent;
 
 public static class Program
 {
-    public const string AgentVersion = "0.1.0";
+    public const string AgentVersion = "0.2.0";
     public const string ServiceName = "ALLSAFEAgent";
     public static string DefaultStateDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ALLSAFE", "Agent");
