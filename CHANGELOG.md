@@ -2,6 +2,14 @@
 
 ## Yayımlanmamış
 
+## 0.2.1-alpha.1 — Açık repo, sunucu işletimi ve hocalar için kurulum düzeltmeleri
+
+- Hocalar için kurulum: PhishCatch analiz bekleme süresi 60 saniyeye çıkarıldı (uzun süre boşta kalan analiz servisinin ilk yanıtı yavaş); Windows betik izni, Python kurulumu, ilk derleme süresi ve sorun giderme notları eklendi.
+- Sunucu dağıtımı GitHub'ı kendisi izler: ALLSAFE `develop`'ta zorunlu API/Web/Agent kontrollerinden geçen commit'ler 10 dakika içinde, sunucuda GitHub kimlik bilgisi olmadan dağıtılır; yeni commit kendi `deploy.sh`'ı ile denenir ve yalnız canlıya çıkınca kalıcı olur. Repo herkese açıldı; self-hosted runner ve dağıtım workflow'u kaldırıldı, dış katkıcı workflow'ları onay ister, gizli bilgi taraması ve gönderim koruması açıldı.
+- Sunucu işletimi: Wazuh'a salt okunur bağlanan sunucu paneli; dağıtım hataları, servis sorunları ve yedek hataları için telefona ntfy bildirimi; 5 dakikalık sağlık kontrolü ve sunucu dışına çekilen haftalık yedek.
+
+Bu bir ön sürümdür. Uygulama özellikleri 0.2.0-alpha.1 ile aynıdır; değişiklikler sunucu işletimi, repo güvenliği ve kurulum belgeleridir. IoT modülü yalnız tasarım düzeyindedir.
+
 ## 0.2.0-alpha.1 — Ekip yönetimi, IoT tasarımı ve sunucu işletimi
 
 - Ekip yönetimi: ekipler, ekip rolleri (üye/lider/yönetici), ekip işleri, yönetici özeti ve kayıtlı ekip panosu; ekip dışındaki kullanıcı ekibi göremez, üye yalnız kendi işlerini görür.

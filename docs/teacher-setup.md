@@ -21,14 +21,27 @@ Hocanın bilgisayarı                          Proje sunucusu (tailnet)
 
 ### Çalıştırma
 
-1. Projeyi indirin ve klasöre girin.
+1. Projeyi indirin ve klasöre girin; repo herkese açıktır, GitHub hesabı gerekmez:
+
+   ```powershell
+   git clone https://github.com/KeremDuz/ALLSAFE.git
+   cd ALLSAFE
+   ```
 2. Ekibin özel olarak gönderdiği bağlantı dosyasını proje kökünde `.env` adıyla kaydedin. Dosyanın biçimi `.env.lab.example` ile aynıdır; içinde yalnız salt okunur Wazuh hesapları ve PhishCatch entegrasyon anahtarı bulunur.
-3. `docker compose up --build`
+3. `docker compose up --build` (ilk derleme internet hızına göre 5–10 dakika sürer; Docker Desktop açık olmalıdır).
 4. http://127.0.0.1:5173 adresini açın. Panel parola sormadan ilk yönetici olarak açılır.
 
 Durdurmak için `Ctrl+C` veya `docker compose down`. Yerel veriler `api-data` volume'unda kalır; sıfırlamak için `docker compose down -v`.
 
-Docker kullanmadan çalıştırmak isterseniz (Python 3.12+, Node.js 22.12+) aynı `.env` ile `scripts/setup.ps1`, `scripts/start-api.ps1` ve `scripts/start-web.ps1` betiklerini kullanın.
+Docker kullanmadan (Windows) çalıştırmak için Python 3.12+ ([python.org](https://www.python.org/downloads/); kurulumda *Add python.exe to PATH* işaretli olmalı, Microsoft Store kısayolu kullanılmaz) ve Node.js 22.12+ gerekir. Aynı `.env` proje kökündeyken PowerShell'de sırasıyla:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1      # bir kez
+powershell -ExecutionPolicy Bypass -File .\scripts\start-api.ps1  # 1. pencere, açık kalır
+powershell -ExecutionPolicy Bypass -File .\scripts\start-web.ps1  # 2. pencere, açık kalır
+```
+
+Windows `.ps1` betiklerini varsayılan olarak engeller; `-ExecutionPolicy Bypass` yalnız o komut için izin verir ve sistem ayarını değiştirmez.
 
 ### Bağlantıyı kontrol etme
 
@@ -46,6 +59,8 @@ https://keremserver.tailf2e48d.ts.net:10443/api/v1/integrations/allsafe/health
 | PhishCatch/Wazuh "yapılandırılmamış" | `.env` proje kökünde değil veya adı farklı (`.env.txt` gibi). Değişiklikten sonra `docker compose up -d` ile yeniden başlatın. |
 | PhishCatch/Wazuh "erişilemiyor" | Tailscale açık değil veya paylaşım kabul edilmedi. Docker Desktop'ı Tailscale açıldıktan sonra yeniden başlatmak DNS sorununu çözebilir. |
 | 5173 veya 8000 portu dolu | Aynı portu kullanan başka bir uygulamayı kapatın. |
+| PhishCatch taraması `upstream_timeout` ile bitti | Sunucudaki analiz servisi bir süre boşta kaldıysa ilk analiz yavaş olur; aynı URL'yi yeniden tarayın. |
+| "running scripts is disabled on this system" | Betiği `powershell -ExecutionPolicy Bypass -File ...` ile çalıştırın. |
 
 ## Proje ekibi için (sunucu sahibi)
 
