@@ -59,6 +59,14 @@ Yeni istemci çıktısı yayımlamak için o çıktıyla yeni bir istemci imajı
 ## Sunucu tarafı
 
 - `~/stacks/<yığın>/.env` gizli bilgileri, `release.env` canlı sürümü (içerik anahtarı ve commit'ler) tutar.
+- Sunucudaki ALLSAFE paneli Wazuh'a salt okunur `allsafe-reader` hesaplarıyla bağlanır (parolaları `~/stacks/allsafe/.env` içinde). API'nin loopback'indeki `127.0.0.1:55001` (Server API) ve `127.0.0.1:9201` (Indexer) adresleri, `wazuh-link.conf` ile wazuh yığınının ağına (`wazuh_default`) iletilir; TLS her zaman doğrulanır. Bunun için wazuh yığınından kopyalanan iki açık sertifika `~/stacks/allsafe` içinde durur: `wazuh-api.crt` (Wazuh API'nin kendi sertifikası, Kasım 2027'de süresi dolar) ve `wazuh-root-ca.pem` (Indexer kök CA). Wazuh sertifikaları yenilenirse yeniden kopyalayın:
+
+  ```sh
+  cd ~/stacks/allsafe
+  docker cp wazuh-wazuh.manager-1:/var/ossec/api/configuration/ssl/server.crt wazuh-api.crt
+  docker cp wazuh-wazuh.indexer-1:/usr/share/wazuh-indexer/config/certs/root-ca.pem wazuh-root-ca.pem
+  docker compose --env-file .env --env-file release.env restart phishcatch_link
+  ```
 - Runner `~/actions-runner` altında `keremserver` kullanıcısıyla systemd servisi olarak çalışır; etiketleri `self-hosted, linux, keremserver`. Yalnız bu özel repoya kayıtlıdır.
 - Son başarılı ALLSAFE dağıtımının kaynağı `~/stacks/.source/allsafe` içinde tutulur. `keremserver` kullanıcısının crontab'ındaki `# ALLSAFE_AUTO_DEPLOY` satırı her 10 dakikada bu kopyadan `deploy.sh`'ı çalıştırır; değişiklik yoksa hiçbir şey yazmadan çıkar. PhishCatch kaynağı `~/stacks/.cache/phishcatch` içinde tutulur.
 - Runner kullanıcısı `docker` grubundadır, yani sunucuda yönetici yetkisine eşdeğerdir. Bu repoya yazma yetkisi verilen herkes sunucuda kod çalıştırabilir; yetkiyi buna göre verin. Repo herkese açılırsa önce runner kaldırılmalıdır. PhishCatch herkese açık olduğu için runner'a bağlanmaz; yalnız Backend CI'dan geçmiş commit'leri sunucu kendisi çeker.

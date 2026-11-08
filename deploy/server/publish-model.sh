@@ -26,7 +26,8 @@ for file in "$@"; do
 done
 
 if ! gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
-  gh release create "$tag" --repo "$repo" --latest=false --title "$tag" \
+  # Pre-release, so model artifacts never take the "Latest" label from real releases.
+  gh release create "$tag" --repo "$repo" --prerelease --title "$tag" \
     --notes "PhishCatch model files. Pinned by deploy/server/models.lock."
 fi
 for file in "$@"; do

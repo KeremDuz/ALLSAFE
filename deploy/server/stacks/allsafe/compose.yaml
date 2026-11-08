@@ -1,6 +1,9 @@
 # Managed by deploy/server/deploy.sh in the ALLSAFE repository; edit it there, not on the server.
 # ALLSAFE Core and the private panel/mobile web client (Tailscale Serve :443 -> 127.0.0.1:18180).
-# PhishCatch is reached through the phishcatch-link network; see phishcatch-link.conf.
+# PhishCatch is reached through the phishcatch-link network (phishcatch-link.conf) and Wazuh
+# through the wazuh stack's network (wazuh-link.conf); both appear on the API's loopback.
+# Server-local files next to this one: .env (secrets), wazuh-api.crt and wazuh-root-ca.pem
+# (public certificates copied from the wazuh stack; see deploy/server/README.md).
 name: allsafe
 
 x-api: &api
@@ -20,6 +23,14 @@ x-api: &api
     ALLSAFE_PHISHCATCH_ALLOW_LOOPBACK_HTTP: "true"
     ALLSAFE_PHISHCATCH_INTEGRATION_KEY: ${ALLSAFE_INTEGRATION_KEY:?}
     ALLSAFE_PHISHCATCH_TIMEOUT_SECONDS: "60"
+    # Read-only Wazuh accounts; upstream TLS is verified by the link sidecar.
+    ALLSAFE_WAZUH_SERVER_URL: http://127.0.0.1:55001
+    ALLSAFE_WAZUH_SERVER_USERNAME: allsafe-reader
+    ALLSAFE_WAZUH_SERVER_PASSWORD: ${WAZUH_SERVER_PASSWORD:-}
+    ALLSAFE_WAZUH_INDEXER_URL: http://127.0.0.1:9201
+    ALLSAFE_WAZUH_INDEXER_USERNAME: allsafe-reader
+    ALLSAFE_WAZUH_INDEXER_PASSWORD: ${WAZUH_INDEXER_PASSWORD:-}
+    ALLSAFE_WAZUH_ALLOW_LOOPBACK_HTTP: "true"
   volumes:
     - api-data:/app/data
   read_only: true
@@ -43,7 +54,7 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     cpus: "1.5"
-    networks: [default, phishcatch-link]
+    networks: [default, phishcatch-link, wazuh]
     depends_on:
       migrate: {condition: service_completed_successfully}
     healthcheck:
@@ -60,6 +71,9 @@ services:
       api: {condition: service_healthy, restart: true}
     volumes:
       - ./phishcatch-link.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./wazuh-link.conf:/etc/nginx/conf.d/wazuh-link.conf:ro
+      - ./wazuh-api.crt:/etc/nginx/wazuh/api.crt:ro
+      - ./wazuh-root-ca.pem:/etc/nginx/wazuh/root-ca.pem:ro
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -68,7 +82,7 @@ services:
     security_opt: [no-new-privileges:true]
     mem_limit: 64m
     healthcheck:
-      test: [CMD-SHELL, "nc -z 127.0.0.1 9000"]
+      test: [CMD-SHELL, "nc -z 127.0.0.1 9000 && nc -z 127.0.0.1 55001 && nc -z 127.0.0.1 9201"]
       interval: 30s
       timeout: 8s
       retries: 3
@@ -102,6 +116,9 @@ services:
 
 networks:
   phishcatch-link:
+    external: true
+  wazuh:
+    name: wazuh_default
     external: true
 
 volumes:
