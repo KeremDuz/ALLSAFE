@@ -55,9 +55,10 @@ Paylaşımla tailnet'e katılan cihazların erişim kuralında 1514 ve 1515 port
 **Windows** (yönetici olarak açılmış PowerShell'de):
 
 ```powershell
-$ver = '4.14.10-1'; $msi = "$env:TEMP\wazuh-agent-$ver.msi"
-Invoke-WebRequest "https://packages.wazuh.com/4.x/windows/wazuh-agent-$ver.msi" -OutFile $msi
-$sum = (Invoke-RestMethod "https://packages.wazuh.com/4.x/checksums/wazuh/4.14.10/wazuh-agent-$ver.msi.sha512").Split(' ')[0]
+$ProgressPreference = 'SilentlyContinue'; $ver = '4.14.10-1'; $msi = "$env:TEMP\wazuh-agent-$ver.msi"
+Invoke-WebRequest "https://packages.wazuh.com/4.x/windows/wazuh-agent-$ver.msi" -OutFile $msi -UseBasicParsing
+Invoke-WebRequest "https://packages.wazuh.com/4.x/checksums/wazuh/4.14.10/wazuh-agent-$ver.msi.sha512" -OutFile "$msi.sha512" -UseBasicParsing
+$sum = (Get-Content "$msi.sha512" -Raw).Trim().Split(' ')[0]
 if ((Get-FileHash $msi -Algorithm SHA512).Hash -ne $sum.ToUpper()) { throw 'SHA512 eslesmedi' }
 $pass = ssh keremserver@100.87.174.61 "sed -n 's/^WAZUH_ENROLLMENT_PASSWORD=//p' ~/stacks/wazuh/.env"
 Start-Process msiexec.exe -Wait -ArgumentList "/i `"$msi`" /qn WAZUH_MANAGER=100.87.174.61 WAZUH_AGENT_NAME=$env:COMPUTERNAME WAZUH_REGISTRATION_PASSWORD=$pass"
@@ -67,7 +68,7 @@ Start-Service WazuhSvc; Get-Service WazuhSvc
 **Ubuntu/Debian** (sudo ile):
 
 ```sh
-curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH | sudo gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH | sudo gpg --yes --dearmor -o /usr/share/keyrings/wazuh.gpg
 echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | sudo tee /etc/apt/sources.list.d/wazuh.list
 sudo apt-get update
 sudo WAZUH_MANAGER=100.87.174.61 WAZUH_AGENT_NAME="$(hostname)"   WAZUH_REGISTRATION_PASSWORD="$(ssh keremserver@100.87.174.61 "sed -n 's/^WAZUH_ENROLLMENT_PASSWORD=//p' ~/stacks/wazuh/.env")"   apt-get install -y wazuh-agent=4.14.10-1
