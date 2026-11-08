@@ -4,9 +4,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr, ValidationError
+from sqlalchemy import func, select
 
 from allsafe_api.config import Settings
 from allsafe_api.main import create_app
+from allsafe_api.models import User
 
 ADMIN_EMAIL = "admin@allsafe.local"
 LOOPBACK = ("127.0.0.1", 50000)
@@ -82,3 +84,29 @@ def test_auto_login_is_refused_outside_loopback_development(
 ) -> None:
     with pytest.raises(ValidationError, match="Development auto-login"):
         dev_settings(tmp_path, **overrides)
+
+
+def test_auto_login_lab_without_password_seeds_a_login_only_administrator(
+    tmp_path: Path,
+) -> None:
+    settings = dev_settings(tmp_path, initial_admin_password=None)
+    with TestClient(create_app(settings), client=LOOPBACK) as client:
+        response = client.post("/api/v1/auth/dev-login")
+        assert response.status_code == 200, response.text
+        assert response.json()["email"] == ADMIN_EMAIL
+        # No password was configured, so no guessable password login exists.
+        client.cookies.clear()
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"email": ADMIN_EMAIL, "password": ""},
+        )
+        assert login.status_code in (401, 422)
+
+
+def test_password_less_lab_without_auto_login_creates_no_administrator(tmp_path: Path) -> None:
+    settings = dev_settings(tmp_path, initial_admin_password=None, dev_auto_login=False)
+    application = create_app(settings)
+    with TestClient(application, client=LOOPBACK) as client:
+        assert client.post("/api/v1/auth/dev-login").status_code == 404
+        with application.state.session_factory() as database:
+            assert database.scalar(select(func.count()).select_from(User)) == 0

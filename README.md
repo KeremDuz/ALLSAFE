@@ -16,6 +16,22 @@ ALLSAFE, kurumsal güvenlik verilerini ve cihaz yönetimini tek panelde birleşt
 
 ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP ve firewall sonraki aşamalardadır. Uzaktan erişim laboratuvar prototipidir; [masaüstü modları ve SSH/RDP hedef hazırlığı](docs/managed-access.md) ayrı sınırlar taşır.
 
+## Hızlı başlangıç (hocalar için)
+
+PhishCatch ve Wazuh proje ekibinin sunucusunda çalışır; panel sizin bilgisayarınızda açılır. Gerekenler: Git, [Docker Desktop](https://www.docker.com/products/docker-desktop/) ve sunucuya erişim için [Tailscale](https://tailscale.com/download) (paylaşım daveti proje ekibinden gelir).
+
+1. Projeyi indirin: `git clone <repo-adresi>` ve klasöre girin.
+2. Ekibin özel olarak gönderdiği bağlantı dosyasını proje kökünde `.env` adıyla kaydedin (şablon: `.env.lab.example`).
+3. Çalıştırın:
+
+   ```powershell
+   docker compose up --build
+   ```
+
+4. http://127.0.0.1:5173 adresini açın; panel parolasız, yönetici olarak açılır.
+
+`.env` olmadan da çalışır; bu durumda PhishCatch ve Wazuh "yapılandırılmamış" görünür. Ayrıntılar ve sorun giderme: [docs/teacher-setup.md](docs/teacher-setup.md).
+
 ## Geliştirme düzeni
 
 `main` kararlı sürümleri, `develop` entegrasyonu tutar. İş dalları, ilgili çalışma başladığında `feat/*`, `fix/*`, `hotfix/*` ve `release/*` adlarıyla açılır. Feature PR'ları squash ile `develop`'a, release PR'ları geçmişi koruyan merge ile `main`'e alınır.
@@ -71,7 +87,7 @@ cp .env.example .env
 python -m uvicorn allsafe_api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Docker ile yerel laboratuvar alternatifi: `.env` hazırlandıktan sonra `docker compose up --build`. API yalnızca localhost'a açılır. Docker çalıştırması CI'nin parçası değildir.
+Docker ile yerel laboratuvar alternatifi: `docker compose up --build` (`.env` isteğe bağlıdır; panel http://127.0.0.1:5173, parolasız yerel yönetici girişi varsayılan açıktır). API ve panel yalnızca localhost'a açılır. Docker çalıştırması CI'nin parçası değildir.
 
 ## Doğrulama ve veritabanı
 
