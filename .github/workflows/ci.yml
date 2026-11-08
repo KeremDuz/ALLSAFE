@@ -32,8 +32,10 @@ jobs:
           python -m pip install --no-deps -e apps/api
       - name: Lint and formatting
         run: |
-          python -m ruff check apps/api scripts/demo_enrollment.py
-          python -m ruff format --check apps/api scripts/demo_enrollment.py
+          python -m ruff check apps/api scripts/demo_enrollment.py scripts/home_server.py deploy/home/tests
+          python -m ruff format --check apps/api scripts/demo_enrollment.py scripts/home_server.py deploy/home/tests
+      - name: Private home deployment boundaries
+        run: python -m unittest discover -s deploy/home/tests -v
       - name: API behavior tests
         run: python -m pytest apps/api/tests -q
       - name: Database migration
@@ -67,6 +69,9 @@ jobs:
   agent-checks:
     name: Agent checks
     runs-on: windows-latest
+    env:
+      DOTNET_CLI_HOME: ${{ github.workspace }}/.local/dotnet-home
+      NUGET_PACKAGES: ${{ github.workspace }}/.local/nuget
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v6
@@ -76,5 +81,7 @@ jobs:
         run: dotnet restore apps/agent/Allsafe.Agent.Tests/Allsafe.Agent.Tests.csproj --locked-mode
       - name: Protocol and Windows credential tests
         run: dotnet test apps/agent/Allsafe.Agent.Tests/Allsafe.Agent.Tests.csproj --no-restore --configuration Release
+      - name: Package integrity and path safety tests
+        run: .\scripts\test-agent-package.ps1
       - name: Windows package
-        run: dotnet publish apps/agent/Allsafe.Agent/Allsafe.Agent.csproj --configuration Release --runtime win-x64 --self-contained true --output .local/agent-package -p:RestoreLockedMode=true
+        run: .\scripts\publish-agent.ps1

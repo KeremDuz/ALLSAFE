@@ -1,41 +1,74 @@
 namespace Allsafe.Agent;
 
-public sealed class HeartbeatWorker(AgentApiClient api, DeviceCredential credential,
-    ILogger<HeartbeatWorker> logger, IHostApplicationLifetime lifetime) : BackgroundService
+public sealed class AgentExitStatus
+{
+    public int ExitCode { get; private set; }
+    internal void Fail(int code) => ExitCode = code;
+}
+
+public sealed class HeartbeatWorker(IAgentHeartbeatClient api, DeviceCredential credential,
+    IInventoryProvider inventory, ILogger<HeartbeatWorker> logger,
+    IHostApplicationLifetime lifetime, TimeProvider clock, AgentExitStatus exitStatus) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var failures = 0;
+        var connected = false;
+        var inventoryUnavailable = false;
         while (!stoppingToken.IsCancellationRequested)
         {
+            InventorySnapshot? snapshot = null;
+            try
+            {
+                snapshot = inventory.Collect();
+                if (inventoryUnavailable) logger.LogInformation("Inventory collection recovered.");
+                inventoryUnavailable = false;
+            }
+            catch (Exception)
+            {
+                if (!inventoryUnavailable)
+                    logger.LogWarning("Inventory unavailable. Heartbeat will continue without an inventory update.");
+                inventoryUnavailable = true;
+            }
+
             TimeSpan delay;
             try
             {
-                await api.HeartbeatAsync(credential, Program.AgentVersion, new WindowsInventoryProvider().Collect(), stoppingToken);
+                await api.HeartbeatAsync(credential, Program.AgentVersion, snapshot, stoppingToken);
+                if (!connected || failures > 0)
+                    logger.LogInformation("ALLSAFE connection established.");
+                else logger.LogDebug("Device heartbeat accepted.");
+                connected = true;
                 failures = 0;
-                logger.LogInformation("Device heartbeat accepted.");
-                delay = TimeSpan.FromSeconds(30);
+                delay = TimeSpan.FromSeconds(30 + Random.Shared.NextDouble() * 3);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (AgentApiException problem) when (problem.IsTransient)
             {
                 failures = Math.Min(failures + 1, 5);
                 delay = RetryDelay(failures, Random.Shared.NextDouble());
-                logger.LogWarning("Connection temporarily unavailable. Retrying in {Seconds:F0} seconds.", delay.TotalSeconds);
+                if (problem.RetryAfter is { } requested && requested > delay) delay = requested;
+                if (failures == 1)
+                    logger.LogWarning("Connection unavailable (HTTP {Status}). Retrying in {Seconds:F0} seconds.",
+                        problem.StatusCode?.ToString() ?? "unavailable", delay.TotalSeconds);
+                else logger.LogDebug("Connection retry in {Seconds:F0} seconds.", delay.TotalSeconds);
             }
-            catch (AgentApiException)
+            catch (AgentApiException problem)
             {
-                logger.LogError("Server rejected the device credential or protocol. Local identity preserved; administrator action required.");
-                Environment.ExitCode = 2;
+                logger.LogError("Server rejected the device credential or protocol (HTTP {Status}). Identity preserved; administrator action required.",
+                    problem.StatusCode?.ToString() ?? "unavailable");
+                exitStatus.Fail(2);
                 lifetime.StopApplication();
                 return;
             }
             catch (Exception)
             {
-                logger.LogError("Local inventory collection failed. No new device was created.");
-                delay = TimeSpan.FromSeconds(30);
+                logger.LogError("Local agent failure. Identity preserved; administrator action required.");
+                exitStatus.Fail(3);
+                lifetime.StopApplication();
+                return;
             }
-            try { await Task.Delay(delay, stoppingToken); }
+            try { await Task.Delay(delay, clock, stoppingToken); }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
         }
     }

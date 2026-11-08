@@ -36,9 +36,13 @@ Rol, erişim durumu veya eğitim izni değiştiğinde ilgili kullanıcının otu
 | Kullanıcı oluşturma ve yönetme | Evet | Hayır | Hayır |
 | Wazuh cihazları ve alarmlarını okuma | Evet | Evet | Hayır |
 | Yerel Wazuh cihaz eşleştirmesini değiştirme | Evet | Hayır | Hayır |
+| Uzaktan masaüstü talebi (`desktop:manage`) | Yalnız insan web oturumu | Hayır | Hayır |
+| SSH terminali / RDP profili (`remote-access:manage`) | Yalnız insan web oturumu | Hayır | Hayır |
 | Eğitim örneğini onaylama | `training_permission` verilirse; ilk yöneticiye açık | `training_permission` verilirse | `training_permission` verilirse |
 
 `employee`, PhishCatch mobil ve panel taramalarını kendi kimliğiyle gönderir ve yalnızca kendi geçmişini görür; şirketin tüm cihazlarını ve Wazuh alarmlarını okuyamaz. Yönetici ve analist kurum taramalarını okuyup inceleyebilir. `training_permission`, cihaz yönetimi hakkı vermez; yalnızca doğrulanmış ve uygun özellikleri bulunan örneği ayrıca onaylama/export hakkıdır. Tahmin, doğrulanmış eğitim etiketi ve model yükseltme ayrı işlemler olarak kalır; otomatik model eğitimi/yayımlaması uygulanmamıştır.
+
+Masaüstünde yerel onayın beklenip beklenmemesi hedefte açıkça başlatılan `--unattended` moduna bağlıdır; panel rolünü veya sunucu yetkilendirmesini değiştirmez. SSH terminali ise önceden tanımlı Windows hesabını kullanır. ALLSAFE yönetici rolü Windows yöneticiliğini kendiliğinden vermez. [Yönetim erişimi sınırları](managed-access.md).
 
 ## Oturum ve tarayıcı koruması
 
@@ -48,6 +52,7 @@ Rol, erişim durumu veya eğitim izni değiştiğinde ilgili kullanıcının otu
 - Sunucu izinleri veritabanındaki güncel kullanıcı üzerinden hesaplar; eski bir açık ekran rol değişikliğini aşamaz. Devre dışı hesap giriş yapamaz.
 - Yerel HTTP laboratuvarında `ALLSAFE_COOKIE_SECURE=false` kullanılır. HTTPS laboratuvarında `true` gerekir. Bu ayar üretim engelini kaldırmaz.
 - Varsayılan oturum süresi sekiz saattir; `ALLSAFE_USER_SESSION_TTL_SECONDS=28800` ile belirtilir. Süre sınırı sunucuda uygulanır.
+- `ALLSAFE_DEV_AUTO_LOGIN=true` yalnız yerel geliştirme kolaylığıdır: panel açılınca `POST /api/v1/auth/dev-login` ile parolasız olarak ilk yönetici (`ALLSAFE_INITIAL_ADMIN_EMAIL`) oturumu açılır ve `auth.dev_auto_login` işlem kaydı yazılır. Ayar uygulamada varsayılan olarak kapalıdır; yalnız loopback'e bağlanan yerel `compose.yaml` laboratuvarı bunu varsayılan olarak açar. `ALLSAFE_INITIAL_ADMIN_PASSWORD` boşsa ilk yönetici kimsenin bilmediği rastgele bir parolayla oluşturulur ve yalnız bu yolla girilebilir. `development` dışındaki ortamda, OIDC modunda veya panel/API adresi loopback değilse API başlamaz. Uç nokta loopback dışı istemciyi ve güvenilmeyen origin'i reddeder. Ortak ağa açılan kurulumda veya kabul testinde açık bırakılmaz.
 
 ## Ayarlar
 

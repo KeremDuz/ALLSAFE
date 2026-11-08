@@ -11,7 +11,7 @@ public sealed class AgentApiClientTests
     private const string DeviceId = "cf8e9b4d-40b3-4eaf-af2c-a43803b99c36";
     private const string DeviceToken = "device-token-private-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     private const string EnrollmentToken = "enrollment-private-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    private const string AgentVersion = "0.1.0";
+    private const string AgentVersion = "0.2.0";
 
     [Fact]
     public async Task EnrollmentMatchesApiContractAndReturnsDeviceSpecificCredentials()
@@ -97,7 +97,7 @@ public sealed class AgentApiClientTests
     [InlineData(403, false)]
     [InlineData(409, false)]
     [InlineData(422, false)]
-    [InlineData(408, false)]
+    [InlineData(408, true)]
     [InlineData(429, true)]
     [InlineData(500, true)]
     [InlineData(503, true)]
@@ -270,6 +270,186 @@ public sealed class AgentApiClientTests
     }
 
     [Fact]
+    public async Task DefaultCredentialsAddedAfterConstructionAreRejectedBeforeSending()
+    {
+        using RecordingHandler handler = new(HeartbeatResponse);
+        using HttpClient http = new(handler);
+        AgentApiClient api = new(http);
+        http.DefaultRequestHeaders.Add("Cookie", $"session={DeviceToken}");
+
+        ArgumentException failure = await Assert.ThrowsAsync<ArgumentException>(
+            () => api.EnrollAsync(Server, EnrollmentToken, "LAB-WINDOWS", AgentVersion));
+
+        Assert.Empty(handler.Requests);
+        AssertSanitized(failure, DeviceToken);
+    }
+
+    [Theory]
+    [InlineData(429, 120, 120)]
+    [InlineData(503, 120, 120)]
+    [InlineData(503, 3600, 300)]
+    [InlineData(500, 120, null)]
+    [InlineData(403, 120, null)]
+    public async Task ServerRetryDelayIsSanitizedBoundedAndLimitedToRateLimitsOrUnavailable(
+        int status, int serverSeconds, int? expectedSeconds)
+    {
+        using RecordingHandler handler = new(_ =>
+        {
+            var response = JsonResponse((HttpStatusCode)status, $"private {DeviceToken}");
+            response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromSeconds(serverSeconds));
+            return response;
+        });
+        using HttpClient http = new(handler);
+
+        AgentApiException failure = await Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http).HeartbeatAsync(
+            new DeviceCredential(Server, DeviceId, DeviceToken), AgentVersion, null));
+
+        Assert.Equal(expectedSeconds is { } seconds ? TimeSpan.FromSeconds(seconds) : null, failure.RetryAfter);
+        Assert.Single(handler.Requests);
+        AssertSanitized(failure, DeviceToken);
+    }
+
+    [Fact]
+    public async Task RetryAfterDateIsSupported()
+    {
+        using RecordingHandler handler = new(_ =>
+        {
+            var response = JsonResponse(HttpStatusCode.TooManyRequests, "{}");
+            response.Headers.RetryAfter = new RetryConditionHeaderValue(DateTimeOffset.UtcNow.AddSeconds(90));
+            return response;
+        });
+        using HttpClient http = new(handler);
+
+        AgentApiException failure = await Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http).HeartbeatAsync(
+            new DeviceCredential(Server, DeviceId, DeviceToken), AgentVersion, null));
+
+        Assert.NotNull(failure.RetryAfter);
+        Assert.InRange(failure.RetryAfter.Value.TotalSeconds, 1, 90);
+    }
+
+    [Fact]
+    public async Task ExpiredRetryAfterDateDoesNotAddANegativeDelay()
+    {
+        using RecordingHandler handler = new(_ =>
+        {
+            var response = JsonResponse(HttpStatusCode.ServiceUnavailable, "{}");
+            response.Headers.RetryAfter = new RetryConditionHeaderValue(DateTimeOffset.UtcNow.AddMinutes(-1));
+            return response;
+        });
+        using HttpClient http = new(handler);
+
+        AgentApiException failure = await Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http).HeartbeatAsync(
+            new DeviceCredential(Server, DeviceId, DeviceToken), AgentVersion, null));
+
+        Assert.Equal(TimeSpan.Zero, failure.RetryAfter);
+    }
+
+    [Fact]
+    public async Task MalformedRetryAfterIsIgnoredWithoutExposingHeaderValues()
+    {
+        using RecordingHandler handler = new(_ =>
+        {
+            var response = JsonResponse(HttpStatusCode.TooManyRequests, "{}");
+            response.Headers.TryAddWithoutValidation("Retry-After", DeviceToken);
+            return response;
+        });
+        using HttpClient http = new(handler);
+
+        AgentApiException failure = await Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http).HeartbeatAsync(
+            new DeviceCredential(Server, DeviceId, DeviceToken), AgentVersion, null));
+
+        Assert.True(failure.IsTransient);
+        Assert.Null(failure.RetryAfter);
+        AssertSanitized(failure, DeviceToken);
+    }
+
+    [Theory]
+    [InlineData("device_id")]
+    [InlineData("agent_token")]
+    public async Task DuplicateEnrollmentIdentityPropertiesAreRejected(string property)
+    {
+        var value = property == "device_id" ? DeviceId : DeviceToken;
+        string body = $$"""{"device_id":"{{DeviceId}}","agent_token":"{{DeviceToken}}","{{property}}":"{{value}}"}""";
+        using RecordingHandler handler = new(_ => JsonResponse(HttpStatusCode.Created, body));
+        using HttpClient http = new(handler);
+
+        AgentApiException failure = await Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http)
+            .EnrollAsync(Server, EnrollmentToken, "LAB-WINDOWS", AgentVersion));
+
+        Assert.False(failure.IsTransient);
+        Assert.Single(handler.Requests);
+        AssertSanitized(failure, DeviceToken, body);
+    }
+
+    [Fact]
+    public async Task DuplicateHeartbeatAcknowledgementsAreRejectedEvenWhenOneMatches()
+    {
+        string body = $$"""{"device_id":"00000000-0000-0000-0000-000000000000","device_id":"{{DeviceId}}"}""";
+        using RecordingHandler handler = new(_ => JsonResponse(HttpStatusCode.OK, body));
+        using HttpClient http = new(handler);
+
+        AgentApiException failure = await Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http).HeartbeatAsync(
+            new DeviceCredential(Server, DeviceId, DeviceToken), AgentVersion, null));
+
+        Assert.False(failure.IsTransient);
+        AssertSanitized(failure, DeviceToken);
+    }
+
+    [Theory]
+    [InlineData("text/html")]
+    [InlineData("text/plain")]
+    [InlineData(null)]
+    public async Task SuccessWithoutJsonMediaTypeDoesNotYieldCredentials(string? contentType)
+    {
+        using RecordingHandler handler = new(_ =>
+        {
+            var response = JsonResponse(HttpStatusCode.Created,
+                $$"""{"device_id":"{{DeviceId}}","agent_token":"{{DeviceToken}}"}""");
+            response.Content.Headers.ContentType = contentType is null ? null : new MediaTypeHeaderValue(contentType);
+            return response;
+        });
+        using HttpClient http = new(handler);
+
+        AgentApiException failure = await Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http)
+            .EnrollAsync(Server, EnrollmentToken, "LAB-WINDOWS", AgentVersion));
+
+        Assert.False(failure.IsTransient);
+        AssertSanitized(failure, DeviceToken);
+    }
+
+    [Fact]
+    public async Task DeadlineIncludesAStalledResponseBodyAfterHeadersHaveArrived()
+    {
+        using StallingContent content = new();
+        using RecordingHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.Created) { Content = content });
+        using HttpClient http = new(handler) { Timeout = TimeSpan.FromMilliseconds(100) };
+
+        Task<AgentApiException> failure = Assert.ThrowsAsync<AgentApiException>(() => new AgentApiClient(http)
+            .EnrollAsync(Server, EnrollmentToken, "LAB-WINDOWS", AgentVersion));
+        AgentApiException problem = await failure.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(problem.IsTransient);
+        Assert.Null(problem.StatusCode);
+        Assert.Single(handler.Requests);
+        Assert.True(content.StreamDisposed);
+    }
+
+    [Fact]
+    public async Task CallerCancellationDuringBodyReadIsPropagated()
+    {
+        using CancellationTokenSource cancellation = new();
+        using StallingContent content = new(cancellation.Cancel);
+        using RecordingHandler handler = new(_ => new HttpResponseMessage(HttpStatusCode.Created) { Content = content });
+        using HttpClient http = new(handler);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new AgentApiClient(http)
+            .EnrollAsync(Server, EnrollmentToken, "LAB-WINDOWS", AgentVersion, cancellation.Token));
+
+        Assert.Single(handler.Requests);
+        Assert.True(content.StreamDisposed);
+    }
+
+    [Fact]
     public async Task ExplicitCancellationIsPropagatedWithoutRetrying()
     {
         using CancellationTokenSource cancellation = new();
@@ -329,9 +509,17 @@ public sealed class AgentApiClientTests
         }
     }
 
-    private sealed class UnknownLengthContent(byte[] bytes) : HttpContent
+    private sealed class UnknownLengthContent : HttpContent
     {
-        private readonly TrackingStream _stream = new(bytes);
+        private readonly byte[] _bytes;
+        private readonly TrackingStream _stream;
+
+        public UnknownLengthContent(byte[] bytes)
+        {
+            _bytes = bytes;
+            _stream = new(bytes);
+            Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        }
         public int BytesRead => _stream.BytesRead;
 
         protected override bool TryComputeLength(out long length)
@@ -340,7 +528,7 @@ public sealed class AgentApiClientTests
             return false;
         }
 
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => stream.WriteAsync(bytes).AsTask();
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => stream.WriteAsync(_bytes).AsTask();
 
         protected override Task<Stream> CreateContentReadStreamAsync() => Task.FromResult<Stream>(_stream);
         protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken) => Task.FromResult<Stream>(_stream);
@@ -355,6 +543,44 @@ public sealed class AgentApiClientTests
                 BytesRead += read;
                 return read;
             }
+        }
+    }
+
+    private sealed class StallingContent : HttpContent
+    {
+        private readonly StallingStream _stream;
+        public bool StreamDisposed => _stream.Disposed;
+
+        public StallingContent(Action? onRead = null)
+        {
+            _stream = new StallingStream(onRead);
+            Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        }
+
+        protected override bool TryComputeLength(out long length) { length = 0; return false; }
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => throw new NotSupportedException();
+        protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken) => Task.FromResult<Stream>(_stream);
+
+        private sealed class StallingStream(Action? onRead) : Stream
+        {
+            public bool Disposed { get; private set; }
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+            public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                onRead?.Invoke();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return 0;
+            }
+            protected override void Dispose(bool disposing) { if (disposing) Disposed = true; base.Dispose(disposing); }
+            public override void Flush() => throw new NotSupportedException();
+            public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
     }
 }

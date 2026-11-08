@@ -73,6 +73,40 @@ describe('role-aware panel access', () => {
     expect(paths.some((path) => /\/(devices|users|audit-events|modules)(?:\?|\/|$)/.test(path))).toBe(false);
   });
 
+  it('signs in through development auto-login only when the API enables it', async () => {
+    const normal = authenticatedFetch(analyst);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const path = String(input).split('?')[0];
+      if (path === '/api/v1/auth/config') return jsonResponse({ mode: 'local', oidc_enabled: false, dev_auto_login: true });
+      if (path === '/api/v1/auth/me') return jsonResponse({ detail: 'Invalid or missing credentials' }, 401);
+      if (path === '/api/v1/auth/dev-login') return jsonResponse(analyst);
+      return normal(input, options);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByRole('button', { name: 'Cihazlar' });
+
+    expect(fetchMock.mock.calls.some(([path, options]) => String(path) === '/api/v1/auth/dev-login' && options?.method === 'POST')).toBe(true);
+    expect(screen.queryByLabelText('Parola')).toBeNull();
+  });
+
+  it('shows the password form without calling auto-login when it is disabled', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input).split('?')[0];
+      if (path === '/api/v1/auth/config') return jsonResponse({ mode: 'local', oidc_enabled: false, dev_auto_login: false });
+      if (path === '/api/v1/auth/me') return jsonResponse({ detail: 'Invalid or missing credentials' }, 401);
+      throw new Error(`Unexpected request in test: ${path}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByLabelText('Parola');
+
+    expect(screen.queryByRole('button', { name: 'Geliştirici olarak devam et' })).toBeNull();
+    expect(fetchMock.mock.calls.some(([path]) => String(path).endsWith('/auth/dev-login'))).toBe(false);
+  });
+
   it('lets an analyst read devices without exposing administrator actions', async () => {
     const fetchMock = authenticatedFetch(analyst);
     vi.stubGlobal('fetch', fetchMock);
@@ -85,6 +119,37 @@ describe('role-aware panel access', () => {
     expect(screen.queryByRole('button', { name: /kayıt kodu/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /erişimi iptal/i })).toBeNull();
     expect(fetchMock.mock.calls.some(([path]) => String(path).startsWith('/api/v1/users'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: `${device.hostname} detayını aç` }));
+    expect(screen.queryByRole('button', { name: 'Uzaktan masaüstü' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Yönetici erişimi' })).toBeNull();
+  });
+
+  it('opens managed access only with the dedicated administrator permission', async () => {
+    const admin: User = { ...analyst, role: 'admin', permissions: [...analyst.permissions, 'remote-access:manage'] };
+    const normal = authenticatedFetch(admin);
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+      if (String(input).startsWith('/api/v1/managed-access/devices/')) return jsonResponse({ device_id: device.device_id, terminal: { configured: false, account: null }, rdp: { configured: false, account: null }, error_code: null });
+      return normal(input, options);
+    }));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cihazlar' }));
+    fireEvent.click(await screen.findByRole('button', { name: `${device.hostname} detayını aç` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yönetici erişimi' }));
+    expect(await screen.findByRole('button', { name: 'Terminali aç' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'RDP bağlantısını indir' })).toBeDisabled();
+  });
+
+  it('opens a local-consent desktop request only for the desktop permission', async () => {
+    const admin: User = { ...analyst, role: 'admin', permissions: [...analyst.permissions, 'desktop:manage', 'devices:manage'] };
+    const fetchMock = authenticatedFetch(admin);
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cihazlar' }));
+    fireEvent.click(await screen.findByRole('button', { name: `${device.hostname} detayını aç` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Uzaktan masaüstü' }));
+    expect(screen.getByLabelText('Erişim')).toHaveValue('view');
+    expect(screen.getByRole('button', { name: 'Bağlantı isteği gönder' })).toBeDisabled();
+    expect(fetchMock.mock.calls.some(([path]) => String(path).includes('remote-desktop'))).toBe(false);
   });
 
   it('clears protected views when a revoked or expired session receives a 401', async () => {

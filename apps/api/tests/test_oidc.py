@@ -80,6 +80,7 @@ def test_local_mode_does_not_offer_oidc_login(identity_client: TestClient) -> No
     assert identity_client.get("/api/v1/auth/config").json() == {
         "mode": "local",
         "oidc_enabled": False,
+        "dev_auto_login": False,
     }
     assert identity_client.get("/api/v1/auth/oidc/login").status_code == 503
     assert identity_client.get("/api/v1/auth/oidc/callback").status_code == 503
@@ -130,7 +131,11 @@ def test_oidc_uses_explicit_identity_mapping_without_changing_role(
         assert current.json()["role"] == "employee"
         assert "users:manage" not in current.json()["permissions"]
         assert client.get("/api/v1/devices").status_code == 403
-        assert client.get("/api/v1/auth/config").json() == {"mode": "oidc", "oidc_enabled": True}
+        assert client.get("/api/v1/auth/config").json() == {
+            "mode": "oidc",
+            "oidc_enabled": True,
+            "dev_auto_login": False,
+        }
         assert (
             client.post(
                 "/api/v1/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}

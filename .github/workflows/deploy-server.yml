@@ -1,0 +1,35 @@
+name: Deploy server
+
+# Every merge to develop is deployed to the home server by its self-hosted runner.
+# deploy/server/deploy.sh builds on the server, health-checks and rolls back on failure.
+# New PhishCatch develop commits are picked up by the server's own 10-minute check
+# (see deploy/server/README.md), so this workflow does not need the submodule.
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to keremserver
+    runs-on: [self-hosted, linux, keremserver]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          clean: true
+      - name: Build, deploy and verify
+        run: bash deploy/server/deploy.sh
+        env:
+          DEPLOY_TRIGGER: push
+          # Read-only token for this run; used only to download pinned model release assets.
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}

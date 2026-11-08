@@ -1,6 +1,8 @@
 # PhishCatch ve merkezi taramalar
 
-PhishCatch ayrı bir analiz servisidir. ALLSAFE kullanıcı kimliği, tarama geçmişi, bağımsız inceleme ve eğitim onayını yönetir. Mobil uygulama bağımsız modunu korur; ALLSAFE modu seçilip kurum hesabıyla giriş yapıldığında QR/URL sonuçları bu panelde görünür. Model dosyaları bu repoya eklenmez ve henüz mevcut değildir; sonuç eksik veya belirsiz olduğunda temiz gibi sunulmaz.
+PhishCatch ayrı bir analiz servisidir. ALLSAFE kullanıcı kimliği, tarama geçmişi, bağımsız inceleme ve eğitim onayını yönetir. Mobil uygulama bağımsız modunu korur; ALLSAFE modu seçilip kurum hesabıyla giriş yapıldığında QR/URL sonuçları bu panelde görünür. Model dosyaları Git dışında tutulur ve her kurulumda ayrıca sağlanır; sonuç eksik veya belirsiz olduğunda temiz gibi sunulmaz.
+
+16 Ekim 2026 tarihli yerel laboratuvarda URL için 300 ağaçlı Random Forest pipeline'ı ve HTML için HistGradientBoosting modeli yüklenmiş, örnek çevrimdışı tahminler doğrulanmıştır. Bu dosyalar repoyla dağıtılmaz. Eski ortamdan taşınan modellerin orijinalleri korunmuş, ayrı çalışma kopyalarının özellik şeması ve örnek tahminleri kontrol edilmiştir; kapsamlı doğruluk, platform/sürüm eşdeğerliği ve fiziksel telefon kabulü ayrıca gerekir. [Sunum ve mevcut yetenekler](project-overview.md).
 
 ## Yerel kurulum
 
@@ -20,7 +22,7 @@ Ayrı terminallerde `start-phishcatch.ps1`, `start-api.ps1` ve `start-web.ps1` �
 
 PhishCatch mobil kaynakları `packages/phishcatch/apps/flutter_app` altındadır. Flutter 3.47.7 ile doğrulanır. Ana ekrandaki **Bağlantı** bölümünden ALLSAFE sunucusunu seçin ve yöneticinin oluşturduğu kurum hesabıyla giriş yapın. Mobil oturum yalnızca bellekte tutulur; uygulama yeniden açıldığında tekrar giriş gerekir. Hesap kapatma, rol/parola değişikliği ve çıkış bu oturumu iptal eder. Mobil OIDC akışı bu ilk sürümde desteklenmez; yerel kurum hesapları kullanılır.
 
-Fiziksel telefon için erişilebilir HTTPS sunucusu gerekir. Android emulator denemesinde açık debug HTTP seçeneği ve `http://10.0.2.2:8000` ALLSAFE adresi kullanılabilir. Release uygulaması HTTPS gerektirir. Kamera, Android/iOS dağıtımı ve gerçek telefondaki kabul testi ayrıca yapılmalıdır. Flutter web derlemesi kaynak doğrulamasıdır; React paneli çekirdekle aynı origin proxy kullanır, Flutter'ın başka origin'den ALLSAFE web girişi ayrıca CORS tasarımı gerektirir.
+Fiziksel telefon için erişilebilir HTTPS sunucusu gerekir. Android emulator denemesinde açık debug HTTP seçeneği ve `http://10.0.2.2:8000` ALLSAFE adresi kullanılabilir. Release uygulaması HTTPS gerektirir. Kamera ve gerçek telefondaki kabul testi ayrıca yapılmalıdır. Yönetilen web sürümü Core ile aynı kökende HttpOnly çerez/CSRF kullanır; başka kökene web oturumu taşımaz. `ALLSAFE_API_BASE_URL` mobil başlangıç sunucusunu seçer; `ALLSAFE_MANAGED_MODE=true` derlemesinde bağımsız moda geçiş kapalıdır. [Ev sunucusu kurulumu ve işletimi](home-server.md), [istemci derleme talimatı](../packages/phishcatch/apps/flutter_app/README.md).
 
 ## İş akışı
 

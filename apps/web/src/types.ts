@@ -7,7 +7,19 @@ export interface User {
   permissions: string[];
   active: boolean;
 }
-export interface AuthConfig { mode: 'local' | 'oidc'; oidc_enabled: boolean }
+export interface AuthConfig { mode: 'local' | 'oidc'; oidc_enabled: boolean; dev_auto_login?: boolean }
+
+export type TeamRole = 'member' | 'lead' | 'manager';
+export type TeamAccess = TeamRole | 'admin';
+export type WorkStatus = 'open' | 'in_progress' | 'blocked' | 'done';
+export type WorkPriority = 'low' | 'medium' | 'high';
+export type TeamWidget = 'status' | 'owners' | 'overdue' | 'recent';
+export interface Team { id: string; name: string; description: string; created_at: string; my_role: TeamAccess; member_count: number; open_items: number }
+export interface TeamMember { user_id: string; display_name: string; email: string; team_role: TeamRole; active: boolean }
+export interface TeamDetail extends Team { members: TeamMember[] }
+export interface WorkItem { id: string; team_id: string; title: string; description: string; status: WorkStatus; priority: WorkPriority; owner_id: string | null; due_date: string | null; created_by: string; created_at: string; updated_at: string }
+export interface TeamSummary { team_id: string; total: number; by_status: Record<WorkStatus, number>; overdue: number; done_last_7_days: number; by_owner: { owner_id: string | null; display_name: string; open_items: number }[] }
+export interface TeamDashboard { team_id: string; widgets: TeamWidget[]; filters: { owner: 'all' | 'me'; hide_done: boolean }; updated_at: string | null }
 export interface Device {
   device_id: string;
   hostname: string;
@@ -18,6 +30,21 @@ export interface Device {
   last_seen_at: string | null;
   revoked_at: string | null;
   inventory: { os_version?: string | null; cpu_count?: number | null; memory_total_bytes?: number | null };
+}
+export interface RemoteDesktopSession {
+  id: string; device_id: string; operator_name: string; reason: string; mode: 'view' | 'control';
+  status: 'pending' | 'approved' | 'active' | 'denied' | 'closed' | 'expired';
+  created_at: string; expires_at: string; closed_reason: string | null;
+}
+export interface ManagedAccessStatus {
+  device_id: string;
+  terminal: { configured: boolean; account: string | null };
+  rdp: { configured: boolean; account: string | null };
+  error_code: string | null;
+}
+export interface ManagedTerminalSession {
+  id: string; device_id: string; status: 'pending' | 'connecting' | 'active' | 'closed' | 'expired';
+  created_at: string; expires_at: string; closed_reason: string | null;
 }
 export interface AuditEvent {
   id: string;
@@ -34,7 +61,7 @@ export interface Module {
   capabilities: string[];
   description: string;
 }
-export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch' | 'wazuh';
+export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch' | 'wazuh' | 'teams' | 'iot';
 export type VerifiedLabel = 'clean' | 'malicious' | 'uncertain';
 export interface ScanAnalysis {
   final_verdict: 'clean' | 'malicious' | 'unknown';

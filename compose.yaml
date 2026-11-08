@@ -1,4 +1,6 @@
-# Local lab only: bootstrap admin authentication is not production user auth.
+# Local lab only: development environment, loopback ports, no production user auth.
+# PhishCatch and Wazuh are optional remote services; leave their settings empty to
+# run the core panel alone. See docs/teacher-setup.md.
 services:
   api:
     build:
@@ -6,17 +8,33 @@ services:
       dockerfile: apps/api/Dockerfile
     ports:
       - "127.0.0.1:8000:8000"
+      # The web container shares this network namespace (see `web`).
+      - "127.0.0.1:5173:80"
     environment:
       ALLSAFE_ENVIRONMENT: development
-      ALLSAFE_BOOTSTRAP_ADMIN_TOKEN: ${ALLSAFE_BOOTSTRAP_ADMIN_TOKEN:?Set a local admin token in .env}
+      ALLSAFE_BOOTSTRAP_ADMIN_TOKEN: ${ALLSAFE_BOOTSTRAP_ADMIN_TOKEN:-}
       ALLSAFE_DATABASE_URL: sqlite:////app/data/allsafe.db
       ALLSAFE_INITIALIZE_SCHEMA: "true"
       ALLSAFE_AUTHENTICATION_MODE: ${ALLSAFE_AUTHENTICATION_MODE:-local}
       ALLSAFE_INITIAL_ADMIN_EMAIL: ${ALLSAFE_INITIAL_ADMIN_EMAIL:-admin@allsafe.local}
       ALLSAFE_INITIAL_ADMIN_PASSWORD: ${ALLSAFE_INITIAL_ADMIN_PASSWORD:-}
+      ALLSAFE_DEV_AUTO_LOGIN: ${ALLSAFE_DEV_AUTO_LOGIN:-true}
       ALLSAFE_FRONTEND_URL: ${ALLSAFE_FRONTEND_URL:-http://127.0.0.1:5173}
       ALLSAFE_API_URL: ${ALLSAFE_API_URL:-http://127.0.0.1:8000}
       ALLSAFE_COOKIE_SECURE: "false"
+      ALLSAFE_PHISHCATCH_URL: ${ALLSAFE_PHISHCATCH_URL:-}
+      ALLSAFE_PHISHCATCH_INTEGRATION_KEY: ${ALLSAFE_PHISHCATCH_INTEGRATION_KEY:-}
+      ALLSAFE_PHISHCATCH_ALLOW_LOOPBACK_HTTP: ${ALLSAFE_PHISHCATCH_ALLOW_LOOPBACK_HTTP:-false}
+      ALLSAFE_PHISHCATCH_TIMEOUT_SECONDS: ${ALLSAFE_PHISHCATCH_TIMEOUT_SECONDS:-45}
+      ALLSAFE_WAZUH_SERVER_URL: ${ALLSAFE_WAZUH_SERVER_URL:-}
+      ALLSAFE_WAZUH_SERVER_USERNAME: ${ALLSAFE_WAZUH_SERVER_USERNAME:-}
+      ALLSAFE_WAZUH_SERVER_PASSWORD: ${ALLSAFE_WAZUH_SERVER_PASSWORD:-}
+      ALLSAFE_WAZUH_INDEXER_URL: ${ALLSAFE_WAZUH_INDEXER_URL:-}
+      ALLSAFE_WAZUH_INDEXER_USERNAME: ${ALLSAFE_WAZUH_INDEXER_USERNAME:-}
+      ALLSAFE_WAZUH_INDEXER_PASSWORD: ${ALLSAFE_WAZUH_INDEXER_PASSWORD:-}
+      ALLSAFE_WAZUH_ALERT_INDEX: ${ALLSAFE_WAZUH_ALERT_INDEX:-wazuh-alerts-*}
+      ALLSAFE_WAZUH_TIMEOUT_SECONDS: ${ALLSAFE_WAZUH_TIMEOUT_SECONDS:-5}
+      ALLSAFE_WAZUH_ALLOW_LOOPBACK_HTTP: ${ALLSAFE_WAZUH_ALLOW_LOOPBACK_HTTP:-false}
     volumes:
       - api-data:/app/data
     healthcheck:
@@ -29,8 +47,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    ports:
-      - "127.0.0.1:5173:80"
+    # Same network namespace as the API: nginx proxies over loopback, so the API
+    # sees the panel exactly as in the non-Docker setup (Vite proxy on 127.0.0.1).
+    network_mode: service:api
     depends_on:
       api:
         condition: service_healthy

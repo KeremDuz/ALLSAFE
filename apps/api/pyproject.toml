@@ -4,12 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "allsafe-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "ALLSAFE device enrollment and platform foundation API"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115,<1",
     "uvicorn>=0.34,<1",
+    "websockets>=17.2,<18",
+    "anyio>=4.15,<5",
     "SQLAlchemy>=2.0,<3",
     "pydantic-settings>=2.7,<3",
     "alembic>=1.14,<2",
@@ -17,6 +19,7 @@ dependencies = [
     "Authlib>=1.6,<2",
     "itsdangerous>=2.2,<3",
     "httpx>=0.28,<1",
+    "asyncssh==2.24.1",
 ]
 
 [project.optional-dependencies]

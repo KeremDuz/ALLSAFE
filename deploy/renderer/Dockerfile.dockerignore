@@ -1,0 +1,11 @@
+**
+!deploy/
+!deploy/renderer/
+!deploy/renderer/requirements.lock
+!packages/
+!packages/phishcatch/
+!packages/phishcatch/apps/
+!packages/phishcatch/apps/backend/
+!packages/phishcatch/apps/backend/app/
+!packages/phishcatch/apps/backend/app/services/
+!packages/phishcatch/apps/backend/app/services/offline_renderer*.py

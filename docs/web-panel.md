@@ -28,6 +28,8 @@ Panel adresi `http://127.0.0.1:5173`, API adresi `http://127.0.0.1:8000` değeri
 
 Panel tek sayfalı bir uygulamadır. Sol menüdeki ekranlar aynı uygulama içinde değişir; cihaz detayları için ayrı, paylaşılabilir tarayıcı adresleri henüz yoktur.
 
+Arayüz; açık renkli menü, tek vurgu rengi, kompakt veri tabloları ve kısa işlem metinleri kullanır. Tanıtım sloganları ve dekoratif kart ikonları kaldırılmıştır. Dar ekranda menü açılır kapanır; geniş tablolar kendi alanında yatay kayar. Sayfa açıklamaları kısaltılırken bağlantı hatası, bilinmeyen veri, bağımsız inceleme ve eğitim onayı ayrımları korunur.
+
 Yerel yapılandırma:
 
 ```dotenv
@@ -60,6 +62,8 @@ Giriş ekranı `GET /api/v1/auth/config` üzerinden giriş yöntemini öğrenir.
 | Genel görünüm | API'den gelen cihaz sayıları, çevrim içi durumlar ve modül durumu | Yönetici ve analist |
 | Cihazlar | Kayıtlı cihazların adı, platformu, agent sürümü ve son bağlantısı | Yönetici ve analist |
 | Cihaz detayı | Cihaz kimliği, kayıt ve bağlantı zamanları, temel envanter | Yönetici ve analist |
+| Uzaktan masaüstü | Gerekçe ve görüntüleme/kontrol kapsamıyla destek talebi; hedefte varsayılan yerel onay veya açık gözetimsiz mod | Yalnız yönetici web oturumu |
+| Yönetici erişimi | Önceden eşlenmiş OpenSSH hesabıyla terminal ve yerel istemci için RDP dosyası | Yalnız yönetici web oturumu |
 | Kayıt daveti | Süreli, tek kullanımlık cihaz kayıt kodu oluşturma | Yönetici |
 | Cihaz erişimi | Seçilen cihazın API erişimini iptal etme | Yönetici |
 | Kullanıcılar | Kullanıcı oluşturma; rol, etkinlik ve ayrı eğitim iznini düzenleme; yerel parola yenileme | Yönetici |
@@ -83,7 +87,7 @@ Kullanıcının rolü, erişim durumu veya eğitim izni değiştiğinde ilgili k
 4. Kayıtlı cihaz listeye eklenir. Düzenli heartbeat varsa API'nin zaman sınırına göre çevrim içi görünür. Hiç heartbeat alınmayan veya zaman sınırını geçen cihaz çevrim dışıdır. Durum, sürekli bir canlı masaüstü bağlantısı anlamına gelmez.
 5. Yönetici cihaz detayında hedefi doğrulayarak erişimi iptal eder. İptalden sonra cihaz anahtarı heartbeat için kabul edilmez; olay kaydı ve cihaz geçmişi korunur. Yeniden bağlanması gereken cihaz yeni davetle kaydedilir.
 
-Cihazın panelde bulunması uzaktan masaüstü, genel amaçlı shell, yama dağıtımı veya güvenlik taraması işlerinin uygulandığı anlamına gelmez. ManageEngine ve patch management ilk kilometre taşına dahil değildir.
+Cihazın panelde bulunması uzaktan erişim hazırlığının veya Windows hesabının yönetici yetkisinin doğrulandığı anlamına gelmez. [Masaüstü](remote-desktop.md) için görünür destek uygulaması; [terminal/RDP](managed-access.md) için önceden hazırlanmış hedef gerekir. RDP dosyası indirme gerçek bağlantı kanıtı değildir. ManageEngine, yama dağıtımı ve güvenlik taraması bu yönetim erişimi modülüne dahil değildir.
 
 ## Oturum, hatalar ve veri güncelliği
 

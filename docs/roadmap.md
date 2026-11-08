@@ -16,7 +16,7 @@ Bu sıra, çalışan bir uçtan uca akış üretmek için hazırlanmıştır. Ta
 
 M1 çekirdeği ve M2 kimlik/panel akışı tamamlandı. Yerel API üzerinde yönetici ve çalışan oturumları, gerçek cihaz listesi ve rol sınırları doğrulandı. Panel testleri hata durumunda bilinmeyen sayıları sıfır olarak göstermediğini de kontrol eder.
 
-M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, fiziksel envanter, aynı kimliğin yeniden yüklenmesi, rotasyon ve iptal sonrası durma doğrulandı. Windows servis kurulumu/reboot kabulü ayrı laboratuvar makinesinde yapılmalıdır. M4 PhishCatch; merkezi tarama/inceleme/eğitim onayı, mobil yerel kurum oturumu ve bağımsız kullanım desteğiyle hazırdır. Yerel servis bağlantısı ve QR kayıt akışı doğrulandı; model dosyaları ve fiziksel mobil kabulü ayrıca gerekir. M5 ayrı Wazuh Server/Indexer bağlantıları, agent/alarm okuması ve açık cihaz eşleştirmesiyle hazırlanmıştır. Wazuh laboratuvarı henüz yoktur; canlı kabul kurulumdan sonra yapılır. Sıradaki iş [birlikte laboratuvar kabulüdür](lab-acceptance.md); M6 olay ve sınırlı yönetim işleri bu doğrulamadan sonra açılır.
+M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, fiziksel envanter, aynı kimliğin yeniden yüklenmesi, rotasyon ve iptal sonrası durma doğrulandı. Windows servis kurulumu/reboot kabulü ayrı laboratuvar makinesinde yapılmalıdır. M4 PhishCatch; merkezi tarama/inceleme/eğitim onayı, mobil yerel kurum oturumu ve bağımsız kullanım desteğiyle hazırdır. Yerel servis bağlantısı ve QR kayıt akışı doğrulandı. Model dosyaları kurulumlarda Git dışında sağlanır; mevcut yerel modellerin yükleme ve örnek tahmin kontrolü geçti, geniş model değerlendirmesi ve fiziksel mobil kabulü bekliyor. M5 ayrı Wazuh Server/Indexer bağlantıları, agent/alarm okuması ve açık cihaz eşleştirmesiyle hazırlanmıştır. Wazuh laboratuvarı henüz yoktur; canlı kabul kurulumdan sonra yapılır. Sıradaki iş [birlikte laboratuvar kabulüdür](lab-acceptance.md); M6 olay ve sınırlı yönetim işleri bu doğrulamadan sonra açılır.
 
 ## Üretim öncesi zorunlu işler
 
@@ -28,4 +28,14 @@ M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, f
 
 ## Daha sonraki kapsam
 
-Patch management, uzaktan masaüstü, DLP, firewall/DNS firewall ve ek üretici bağlantıları ayrı kilometre taşlarıdır. Genel amaçlı uzaktan shell ilk sürüm hedefi değildir. Önce sınırlı ve kayıtlı cihaz işlemlerinin güvenliği ve sonuç takibi tamamlanır.
+| Planlanan modül | Durum | İlk hedef |
+| --- | --- | --- |
+| [Ekip yönetimi](teams.md) | İlk sürüm uygulandı | Ekip ve üyelik, ekip rolleri, ekip işleri, yönetici özeti ve kayıtlı ekip panosu |
+| [IoT güvenliği](iot.md) | Planlandı; panelde tasarım sayfası var, işlev yok | Benzetilmiş aktüatör ve ağ kamerası, komut karantinası, süreç farkındalıklı tespit, K1–K5 karşılaştırması |
+| [E-posta güvenlik geçidi](email-gateway-plan.md) | Planlandı; henüz uygulanmadı | İzole SMTP kuyruğu → analiz → otomatik uygun teslim veya alıcı bazlı karantina → yönetici onayı → Mailpit test kutusu |
+
+E-posta güvenlik geçidi daha sonra yapılmak üzere kaydedildi. Postfix/Rspamd/ClamAV ile mevcut PhishCatch URL incelemesinin birlikte kullanılması, ALLSAFE'te karantina ve kontrollü teslim onayı planlanır. Gerçek DNS/MX veya posta sağlayıcısı değişikliği yapılmadı; dosya zararlı analizi ve mail gateway mevcut yetenek olarak sunulmaz. [Kapsam, güven sınırları ve ilk test akışı](email-gateway-plan.md).
+
+Kullanıcı talebiyle görünür uzaktan masaüstü prototipi ayrı modül olarak eklendi: varsayılan bağlantı başına yerel onay ve yönetici tarafından açıkça başlatılan gözetimsiz seçenek bulunur. Standart OpenSSH panel terminali ve yerel RDP profili, önceden hazırlanmış Windows hesabıyla ayrı yönetim erişimi sağlar. [Görünür destek kabulü](remote-desktop.md) ve [SSH/RDP hedef kabulü](managed-access.md), M3 servis/reboot kabulünden bağımsız olarak hedef Windows laboratuvarında doğrulanmalıdır. Bu ekleme M6 olay yönetiminin tamamlandığı anlamına gelmez.
+
+Patch management, DLP, firewall/DNS firewall ve ek üretici bağlantıları ayrı kilometre taşlarıdır. Kendi ajanımızda genel amaçlı shell/komut kuyruğu uygulanmaz; insan yöneticiye bağlı standart OpenSSH terminali [ADR 0008](decisions/0008-managed-access.md) kapsamındaki dar istisnadır. Sınırlı ajan işlerinin güvenliği ve sonuç takibi ayrıca tamamlanır.

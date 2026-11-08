@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 from allsafe_api.config import Settings
 from allsafe_api.database import get_session
 from allsafe_api.models import AuditEvent, Device, EnrollmentToken, User, new_id, utc_now
+from allsafe_api.remote_desktop.models import DesktopSession
+from allsafe_api.remote_desktop.service import close_device_sessions
 from allsafe_api.schemas import (
     AuditEventResponse,
     DeviceResponse,
@@ -74,6 +76,7 @@ def readiness(session: DatabaseSession) -> dict[str, str]:
         # A reachable database without the required schema is not ready to serve.
         session.execute(select(Device.id).limit(1)).first()
         session.execute(select(User.id).limit(1)).first()
+        session.execute(select(DesktopSession.id).limit(1)).first()
     except SQLAlchemyError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -135,9 +138,37 @@ def list_modules(_: ModuleReader, request: Request) -> list[ModuleResponse]:
         ModuleResponse(
             id="endpoint-management",
             name="Endpoint Management",
+            status="available",
+            capabilities=["consented-remote-desktop", "view-only", "keyboard-pointer-control"],
+            description=(
+                "Prototype desktop sharing requires an interactive Windows helper "
+                "and local user consent for each session."
+            ),
+        ),
+        ModuleResponse(
+            id="teams",
+            name="Team Management",
+            status="available",
+            capabilities=["team-membership", "work-items", "manager-summary", "team-dashboard"],
+            description=(
+                "Administrators manage teams and members; team roles scope work items, "
+                "summaries and saved dashboard layouts."
+            ),
+        ),
+        ModuleResponse(
+            id="iot",
+            name="IoT Security",
             status="planned",
-            capabilities=[],
-            description="Managed jobs and remote actions are planned after enrollment.",
+            capabilities=[
+                "simulated-device-classes",
+                "command-quarantine",
+                "process-aware-detection",
+                "defense-comparison",
+            ],
+            description=(
+                "Planned: an approval-based command quarantine and process-aware anomaly "
+                "detection for simulated actuator and IP camera devices in an isolated lab."
+            ),
         ),
     ]
 
@@ -305,6 +336,7 @@ def revoke_device(
             .execution_options(synchronize_session=False)
         ).scalar_one_or_none()
         if revoked_id is not None:
+            close_device_sessions(session, device_id, "device_unavailable")
             session.add(
                 AuditEvent(
                     event_type="device.revoked",
@@ -355,4 +387,5 @@ def rotate_device_token(
                 event_type="device.token_rotated", actor=admin, target_id=device_id, details={}
             )
         )
+        close_device_sessions(session, device_id, "device_credentials_changed")
     return EnrollResponse(device_id=device_id, agent_token=token)

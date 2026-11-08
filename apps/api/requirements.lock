@@ -12,12 +12,15 @@ annotated-types==0.8.0
     # via pydantic
 anyio==4.15.1
     # via
+    #   allsafe-api (apps/api/pyproject.toml)
     #   httpx
     #   starlette
 argon2-cffi==25.1.0
     # via allsafe-api (apps/api/pyproject.toml)
 argon2-cffi-bindings==26.1.0
     # via argon2-cffi
+asyncssh==2.24.1
+    # via allsafe-api (apps/api/pyproject.toml)
 authlib==1.9.0
     # via allsafe-api (apps/api/pyproject.toml)
 certifi==2026.7.22
@@ -32,6 +35,7 @@ click==8.5.0
     # via uvicorn
 cryptography==50.0.2
     # via
+    #   asyncssh
     #   authlib
     #   joserfc
 fastapi==0.143.0
@@ -80,6 +84,7 @@ typing-extensions==4.16.0
     # via
     #   alembic
     #   anyio
+    #   asyncssh
     #   fastapi
     #   opentelemetry-api
     #   pydantic
@@ -93,4 +98,6 @@ typing-inspection==0.4.4
     #   pydantic
     #   pydantic-settings
 uvicorn==0.54.0
+    # via allsafe-api (apps/api/pyproject.toml)
+websockets==17.2
     # via allsafe-api (apps/api/pyproject.toml)

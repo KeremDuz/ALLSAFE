@@ -1,0 +1,10 @@
+seccomp.json is copied without modification from Microsoft Playwright:
+https://github.com/microsoft/playwright/blob/main/utils/docker/seccomp_profile.json
+Retrieved 2026-10-21. SHA-256:
+cc3e61cabda6bbc1e53e54d27ba4d55a9d3be829b6dd1a596f4a7b31b1cc7849
+
+Playwright is licensed under Apache License 2.0:
+https://github.com/microsoft/playwright/blob/main/LICENSE
+
+The renderer dependency lock is a browser-only subset of the project's pinned
+requirements-browser.lock. Docker build installs the matching bundled Chromium.

@@ -8,7 +8,8 @@ public sealed class DeviceCredential
         ServerUri = AgentServerUri.Parse(serverUri.AbsoluteUri, allowLoopbackHttp: true);
         if (!Guid.TryParseExact(deviceId, "D", out var id))
             throw new ArgumentException("A canonical device UUID is required.", nameof(deviceId));
-        if (string.IsNullOrWhiteSpace(agentToken) || agentToken.Length < 32 || agentToken.Length > 128 || agentToken.Any(char.IsWhiteSpace))
+        if (string.IsNullOrWhiteSpace(agentToken) || agentToken.Length < 32 || agentToken.Length > 128 ||
+            agentToken.Any(character => character is < '!' or > '~'))
             throw new ArgumentException("A valid device credential is required.", nameof(agentToken));
         DeviceId = id.ToString("D");
         AgentToken = agentToken;
@@ -21,3 +22,14 @@ public sealed class DeviceCredential
 }
 
 public sealed record InventorySnapshot(string? OsVersion, int? CpuCount, long? MemoryTotalBytes);
+
+public interface IAgentHeartbeatClient
+{
+    Task HeartbeatAsync(DeviceCredential credential, string agentVersion,
+        InventorySnapshot? inventory, CancellationToken cancellationToken = default);
+}
+
+public interface IInventoryProvider
+{
+    InventorySnapshot Collect();
+}
