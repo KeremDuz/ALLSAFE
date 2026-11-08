@@ -2,6 +2,8 @@ name: Deploy server
 
 # Every merge to develop is deployed to the home server by its self-hosted runner.
 # deploy/server/deploy.sh builds on the server, health-checks and rolls back on failure.
+# New PhishCatch develop commits are picked up by the server's own 10-minute check
+# (see deploy/server/README.md), so this workflow does not need the submodule.
 on:
   push:
     branches: [develop]
@@ -22,11 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
           clean: true
       - name: Build, deploy and verify
         run: bash deploy/server/deploy.sh
         env:
+          DEPLOY_TRIGGER: push
           # Read-only token for this run; used only to download pinned model release assets.
           GH_TOKEN: ${{ github.token }}
           GH_REPOSITORY: ${{ github.repository }}
