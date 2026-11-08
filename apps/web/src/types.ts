@@ -7,7 +7,7 @@ export interface User {
   permissions: string[];
   active: boolean;
 }
-export interface AuthConfig { mode: 'local' | 'oidc'; oidc_enabled: boolean }
+export interface AuthConfig { mode: 'local' | 'oidc'; oidc_enabled: boolean; dev_auto_login?: boolean }
 export interface Device {
   device_id: string;
   hostname: string;

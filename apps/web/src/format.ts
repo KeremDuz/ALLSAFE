@@ -43,6 +43,7 @@ export const auditLabels: Record<string, string> = {
   'desktop.denied': 'Uzaktan masaüstü reddedildi',
   'desktop.started': 'Uzaktan masaüstü başladı',
   'desktop.closed': 'Uzaktan masaüstü kapandı',
+  'auth.dev_auto_login': 'Geliştirici otomatik girişi',
   'desktop.expired': 'Uzaktan masaüstü süresi doldu',
   'managed_access.terminal.requested': 'Yönetici terminali istendi',
   'managed_access.terminal.started': 'Yönetici terminali açıldı',
