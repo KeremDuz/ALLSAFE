@@ -20,7 +20,7 @@ ManageEngine entegrasyonu bu projede kullanılmayacak. Patch management, DLP ve 
 
 PhishCatch ve Wazuh proje ekibinin sunucusunda çalışır; panel sizin bilgisayarınızda açılır. Gerekenler: Git, [Docker Desktop](https://www.docker.com/products/docker-desktop/) ve sunucuya erişim için [Tailscale](https://tailscale.com/download) (paylaşım daveti proje ekibinden gelir).
 
-1. Projeyi indirin: `git clone <repo-adresi>` ve klasöre girin.
+1. Projeyi indirin (GitHub hesabı gerekmez): `git clone https://github.com/KeremDuz/ALLSAFE.git` ve `ALLSAFE` klasörüne girin.
 2. Ekibin özel olarak gönderdiği bağlantı dosyasını proje kökünde `.env` adıyla kaydedin (şablon: `.env.lab.example`).
 3. Çalıştırın:
 

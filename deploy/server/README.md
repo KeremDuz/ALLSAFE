@@ -1,13 +1,14 @@
 # Sunucuya otomatik dağıtım
 
-ALLSAFE ve PhishCatch, GitHub'daki `develop` dalları güncellendiğinde ev sunucusuna (keremserver) kendiliğinden dağıtılır. Sunucudaki yığınların (`~/stacks/phishcatch`, `~/stacks/allsafe`) tanımı bu klasördedir; sunucuda elle düzenlenmez.
+ALLSAFE ve PhishCatch, GitHub'daki `develop` dalları güncellendiğinde ev sunucusuna (keremserver) kendiliğinden dağıtılır. Sunucudaki yığınların (`~/stacks/phishcatch`, `~/stacks/allsafe`) tanımı bu klasördedir; sunucuda elle düzenlenmez. İki repo da herkese açıktır; sunucu GitHub'a hiçbir kimlik bilgisi olmadan bakar ve GitHub sunucuya hiç bağlanmaz.
 
 ```
-ALLSAFE develop'a merge ──▶ GitHub Actions (deploy-server.yml) ──▶ sunucudaki runner ─┐
-PhishCatch develop'a merge ──▶ Backend CI geçer ──▶ sunucunun 10 dakikalık kontrolü ──┤
-                                                                                      ▼
-                                                                 deploy/server/deploy.sh
-   1. PhishCatch develop'un Backend CI'dan geçmiş son commit'ini belirler
+ALLSAFE develop'a merge ──▶ API/Web/Agent kontrolleri geçer ──┐
+PhishCatch develop'a merge ──▶ Backend CI geçer ───────────────┤  sunucunun 10 dakikalık kontrolü
+                                                               ▼
+                                                  deploy/server/deploy.sh
+   1. ALLSAFE ve PhishCatch develop'un kontrollerden geçmiş son commit'ini belirler
+      (yeni ALLSAFE commit'i kendi deploy.sh'ı ile denenir; canlıya çıkınca kalıcı olur)
    2. Her yığın için içerik anahtarı hesaplar; yalnız değişen yığın yeniden derlenir/başlatılır
    3. models.lock değiştiyse modelleri özel release'ten indirir, SHA-256 doğrular
    4. Değişen yığının veritabanını yedekler
@@ -15,7 +16,7 @@ PhishCatch develop'a merge ──▶ Backend CI geçer ──▶ sunucunun 10 da
    ✗ Bir adım başarısızsa: önceki imaj, yığın dosyaları, modeller ve ALLSAFE veritabanı geri gelir
 ```
 
-ALLSAFE dağıtımları GitHub'da **Actions → Deploy server** altında görünür. Tüm dağıtımların (PhishCatch kaynaklı olanlar dahil) ayrıntılı kaydı sunucuda `~/stacks/deploy.log` dosyasındadır; durum Portainer'dan da izlenebilir.
+Her dağıtım ve hata telefona bildirim olarak gelir; ayrıntılı kayıt sunucuda `~/stacks/deploy.log` dosyasındadır, konteyner durumu Portainer'dan izlenir. Kontrollerden geçmemiş veya bitmemiş bir commit dağıtılmaz; sunucu çalışan sürümde kalır.
 
 ## Neler otomatik, neler değil
 
@@ -25,7 +26,7 @@ ALLSAFE dağıtımları GitHub'da **Actions → Deploy server** altında görün
 | Yönetim paneli (`/admin/`) | ALLSAFE `apps/web` | Evet |
 | Nginx ve yığın ayarları | ALLSAFE `deploy/` | Evet |
 | PhishCatch analiz servisi | PhishCatch `develop`, `apps/backend` | Evet; Backend CI geçtikten sonra en geç ~10 dakikada |
-| PhishCatch modelleri | ALLSAFE `deploy/server/models.lock` + özel release dosyaları | Evet, kilit dosyası değişince |
+| PhishCatch modelleri | ALLSAFE `deploy/server/models.lock` + release dosyaları | Evet, kilit dosyası değişince |
 | Flutter web istemcileri | Sunucudaki sabit istemci imajları | Hayır (aşağıya bakın) |
 | Gizli bilgiler (`.env`, `providers.env`) | Yalnız sunucu | Hayır; Git'e girmez |
 | Wazuh, Portainer | `~/stacks/wazuh`, `~/stacks/portainer` | Hayır; sürümleri bilinçli olarak elle yükseltilir |
@@ -36,7 +37,7 @@ Backend CI'ı başarısız olan veya henüz bitmemiş PhishCatch commit'i dağı
 
 ## Modeller
 
-Model dosyaları Git'e girmez (GitHub 100 MB'tan büyük dosyayı kabul etmez). Her model sürümü bu **özel** repodaki bir release'in dosyası olarak saklanır; `models.lock` hangi dosyanın, hangi release'ten ve hangi SHA-256 özetiyle kullanılacağını sabitler. Pickle dosyaları yüklenirken kod çalıştırabildiği için özeti tutmayan dosya hiçbir koşulda devreye alınmaz.
+Model dosyaları Git'e girmez (GitHub 100 MB'tan büyük dosyayı kabul etmez). Her model sürümü bu repodaki bir release'in dosyası olarak saklanır (repo açık olduğu için modeller de herkese açıktır); `models.lock` hangi dosyanın, hangi release'ten ve hangi SHA-256 özetiyle kullanılacağını sabitler. Pickle dosyaları yüklenirken kod çalıştırabildiği için özeti tutmayan dosya hiçbir koşulda devreye alınmaz.
 
 Yeni model yayımlamak (GitHub CLI oturumu açık bir bilgisayarda, Git Bash ile):
 
@@ -67,9 +68,8 @@ Yeni istemci çıktısı yayımlamak için o çıktıyla yeni bir istemci imajı
   docker cp wazuh-wazuh.indexer-1:/usr/share/wazuh-indexer/config/certs/root-ca.pem wazuh-root-ca.pem
   docker compose --env-file .env --env-file release.env restart phishcatch_link
   ```
-- Runner `~/actions-runner` altında `keremserver` kullanıcısıyla systemd servisi olarak çalışır; etiketleri `self-hosted, linux, keremserver`. Yalnız bu özel repoya kayıtlıdır.
 - Son başarılı ALLSAFE dağıtımının kaynağı `~/stacks/.source/allsafe` içinde tutulur. `keremserver` kullanıcısının crontab'ındaki `# ALLSAFE_AUTO_DEPLOY` satırı her 10 dakikada bu kopyadan `deploy.sh`'ı çalıştırır; değişiklik yoksa hiçbir şey yazmadan çıkar. PhishCatch kaynağı `~/stacks/.cache/phishcatch` içinde tutulur.
-- Runner kullanıcısı `docker` grubundadır, yani sunucuda yönetici yetkisine eşdeğerdir. Bu repoya yazma yetkisi verilen herkes sunucuda kod çalıştırabilir; yetkiyi buna göre verin. Repo herkese açılırsa önce runner kaldırılmalıdır. PhishCatch herkese açık olduğu için runner'a bağlanmaz; yalnız Backend CI'dan geçmiş commit'leri sunucu kendisi çeker.
+- Sunucuda GitHub Actions runner'ı **yoktur**: açık bir repoda yabancı PR'lar runner'ı tetikleyip sunucuda kod çalıştırabilirdi. Sunucu yalnız `develop` dalına birleştirilmiş ve zorunlu kontrollerden geçmiş commit'leri kendisi çeker; `develop`'a yazma yetkisi olanlar sunucuya ne gideceğini belirler, bu yetkiyi buna göre verin. GitHub ayarlarında dış katkıcıların her workflow çalıştırması onay ister, varsayılan workflow yetkisi salt okumadır, gizli bilgi taraması ve gönderim koruması açıktır.
 - Yeni bir proje eklemek: projeyi Docker'a (Dockerfile + compose) alın, yığın tanımını ve dağıtım betiğini bu klasördeki düzene göre ekleyin, sunucuda `~/stacks/<proje>/.env` oluşturun.
 
 ## Bildirimler, izleme ve yedekler
@@ -104,10 +104,12 @@ Bu betikler de son dağıtılan ALLSAFE kopyasından (`~/stacks/.source/allsafe`
 
 ## Elle dağıtım ve geri dönüş
 
-Aynı ALLSAFE commit'ini yeniden dağıtmak için Actions'ta ilgili **Deploy server** çalıştırmasında **Re-run all jobs** kullanılır. Sunucuda:
+10 dakikayı beklemeden kontrol etmek veya yeniden dağıtmak için sunucuda:
 
 ```sh
-# Son dağıtılan kaynakla şimdi kontrol et ve gerekiyorsa dağıt
+# GitHub'daki develop'u şimdi kontrol et ve gerekiyorsa dağıt (zamanlanmış çalıştırmanın aynısı)
+DEPLOY_TRIGGER=schedule bash ~/stacks/.source/allsafe/deploy/server/deploy.sh
+# Son dağıtılan kaynakla kontrol et ve gerekiyorsa dağıt
 bash ~/stacks/.source/allsafe/deploy/server/deploy.sh
 # Değişiklik olmasa da iki yığını yeniden derleyip başlat / daha önce başarısız olanı yeniden dene
 DEPLOY_FORCE=1 bash ~/stacks/.source/allsafe/deploy/server/deploy.sh
