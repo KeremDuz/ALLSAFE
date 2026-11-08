@@ -35,8 +35,10 @@ http_code() { curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$@" 2>/dev/n
 [[ $(http_code -k https://127.0.0.1:9200/) == 401 ]] || problems+=("Wazuh Indexer (9200) is not answering")
 
 # Services outside Docker.
-systemctl is-active --quiet 'actions.runner.KeremDuz-ALLSAFE.keremserver.service' ||
-  problems+=("GitHub runner service is not running (ALLSAFE deploys are paused)")
+# Only while a GitHub Actions runner is installed (deploys now poll GitHub instead).
+if systemctl list-unit-files 'actions.runner.*' --no-legend 2>/dev/null | grep -q .; then
+  systemctl is-active --quiet 'actions.runner.*' || problems+=("GitHub runner service is not running")
+fi
 [[ $(tailscale status --json 2>/dev/null | jq -r .BackendState 2>/dev/null) == Running ]] ||
   problems+=("Tailscale is not connected")
 
