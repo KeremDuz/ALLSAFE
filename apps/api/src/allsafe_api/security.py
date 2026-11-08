@@ -41,6 +41,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "scans:review",
             "wazuh:read",
             "wazuh:manage",
+            "teams:manage",
         }
     ),
     "analyst": frozenset(

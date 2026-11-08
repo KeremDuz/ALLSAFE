@@ -8,6 +8,18 @@ export interface User {
   active: boolean;
 }
 export interface AuthConfig { mode: 'local' | 'oidc'; oidc_enabled: boolean; dev_auto_login?: boolean }
+
+export type TeamRole = 'member' | 'lead' | 'manager';
+export type TeamAccess = TeamRole | 'admin';
+export type WorkStatus = 'open' | 'in_progress' | 'blocked' | 'done';
+export type WorkPriority = 'low' | 'medium' | 'high';
+export type TeamWidget = 'status' | 'owners' | 'overdue' | 'recent';
+export interface Team { id: string; name: string; description: string; created_at: string; my_role: TeamAccess; member_count: number; open_items: number }
+export interface TeamMember { user_id: string; display_name: string; email: string; team_role: TeamRole; active: boolean }
+export interface TeamDetail extends Team { members: TeamMember[] }
+export interface WorkItem { id: string; team_id: string; title: string; description: string; status: WorkStatus; priority: WorkPriority; owner_id: string | null; due_date: string | null; created_by: string; created_at: string; updated_at: string }
+export interface TeamSummary { team_id: string; total: number; by_status: Record<WorkStatus, number>; overdue: number; done_last_7_days: number; by_owner: { owner_id: string | null; display_name: string; open_items: number }[] }
+export interface TeamDashboard { team_id: string; widgets: TeamWidget[]; filters: { owner: 'all' | 'me'; hide_done: boolean }; updated_at: string | null }
 export interface Device {
   device_id: string;
   hostname: string;
@@ -49,7 +61,7 @@ export interface Module {
   capabilities: string[];
   description: string;
 }
-export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch' | 'wazuh';
+export type Page = 'overview' | 'devices' | 'users' | 'audit' | 'modules' | 'phishcatch' | 'wazuh' | 'teams';
 export type VerifiedLabel = 'clean' | 'malicious' | 'uncertain';
 export interface ScanAnalysis {
   final_verdict: 'clean' | 'malicious' | 'unknown';

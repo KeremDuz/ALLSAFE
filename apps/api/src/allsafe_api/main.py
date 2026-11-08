@@ -27,6 +27,7 @@ from allsafe_api.remote_desktop.relay import DesktopRelay
 from allsafe_api.remote_desktop.routes import router as desktop_router
 from allsafe_api.remote_desktop.service import close_stale_sessions
 from allsafe_api.routes import router
+from allsafe_api.teams.routes import router as teams_router
 from allsafe_api.wazuh.routes import router as wazuh_router
 
 
@@ -105,6 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(wazuh_router)
     application.include_router(desktop_router)
     application.include_router(managed_access_router)
+    application.include_router(teams_router)
     return application
 
 

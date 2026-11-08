@@ -30,6 +30,7 @@ M3 Windows ajanının kodu ve paketi hazırdır. Gerçek yerel API ile kayıt, f
 
 | Planlanan modül | Durum | İlk hedef |
 | --- | --- | --- |
+| [Ekip yönetimi](teams.md) | İlk sürüm uygulandı | Ekip ve üyelik, ekip rolleri, ekip işleri, yönetici özeti ve kayıtlı ekip panosu |
 | [E-posta güvenlik geçidi](email-gateway-plan.md) | Planlandı; henüz uygulanmadı | İzole SMTP kuyruğu → analiz → otomatik uygun teslim veya alıcı bazlı karantina → yönetici onayı → Mailpit test kutusu |
 
 E-posta güvenlik geçidi daha sonra yapılmak üzere kaydedildi. Postfix/Rspamd/ClamAV ile mevcut PhishCatch URL incelemesinin birlikte kullanılması, ALLSAFE'te karantina ve kontrollü teslim onayı planlanır. Gerçek DNS/MX veya posta sağlayıcısı değişikliği yapılmadı; dosya zararlı analizi ve mail gateway mevcut yetenek olarak sunulmaz. [Kapsam, güven sınırları ve ilk test akışı](email-gateway-plan.md).

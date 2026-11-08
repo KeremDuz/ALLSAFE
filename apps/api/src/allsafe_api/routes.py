@@ -145,6 +145,16 @@ def list_modules(_: ModuleReader, request: Request) -> list[ModuleResponse]:
                 "and local user consent for each session."
             ),
         ),
+        ModuleResponse(
+            id="teams",
+            name="Team Management",
+            status="available",
+            capabilities=["team-membership", "work-items", "manager-summary", "team-dashboard"],
+            description=(
+                "Administrators manage teams and members; team roles scope work items, "
+                "summaries and saved dashboard layouts."
+            ),
+        ),
     ]
 
 
