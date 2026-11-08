@@ -21,7 +21,12 @@ Hocanın bilgisayarı                          Proje sunucusu (tailnet)
 
 ### Çalıştırma
 
-1. Projeyi indirin ve klasöre girin.
+1. Projeyi indirin ve klasöre girin; repo herkese açıktır, GitHub hesabı gerekmez:
+
+   ```powershell
+   git clone https://github.com/KeremDuz/ALLSAFE.git
+   cd ALLSAFE
+   ```
 2. Ekibin özel olarak gönderdiği bağlantı dosyasını proje kökünde `.env` adıyla kaydedin. Dosyanın biçimi `.env.lab.example` ile aynıdır; içinde yalnız salt okunur Wazuh hesapları ve PhishCatch entegrasyon anahtarı bulunur.
 3. `docker compose up --build`
 4. http://127.0.0.1:5173 adresini açın. Panel parola sormadan ilk yönetici olarak açılır.
